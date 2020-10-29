@@ -228,16 +228,18 @@ def main():
     parser.add_argument(
         'platform',
         help='platform word size',
-        type=lambda x: platforms[x])
+        choices=platforms)
 
     parser.add_argument(
         'action',
         help='action to perform',
-        type=lambda x: actions[x])
+        choices=actions)
 
     args = parser.parse_args()
 
-    platform, action = args.platform, args.action
+    platform = platforms[args.platform]
+    action = actions[args.action]
+
     p1, p2 = find_primes_for_platform(platform)
     action(platform, p1, p2)
 
