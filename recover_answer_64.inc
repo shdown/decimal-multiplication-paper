@@ -6,7 +6,7 @@ static void recover_answer_14(
  FFT_DOUBLE_ULIMB carry = 0;
  for (size_t i = 0; i < nout; ++i) {
   carry += crt2(a1[i], a2[i]);
-  FFT_DOUBLE_ULIMB q = (big_mulh((carry), UINT64_C(6018080969204141205), UINT64_C(12980742146337069071))) >> 46;
+  FFT_DOUBLE_ULIMB q = (big_mulh(carry, UINT64_C(6018080969204141205), UINT64_C(12980742146337069071))) >> 46;
   out[i] = carry - q * UINT64_C(100000000000000);
   carry = q;
  }
@@ -30,7 +30,7 @@ static void recover_answer_16(
  FFT_DOUBLE_ULIMB carry = 0;
  for (size_t i = 0; i < nout; ++i) {
   carry += crt2(a1[i], a2[i]);
-  FFT_DOUBLE_ULIMB q = (big_mulh((carry), UINT64_C(15207441643216202349), UINT64_C(4153837486827862102))) >> 51;
+  FFT_DOUBLE_ULIMB q = (big_mulh(carry, UINT64_C(15207441643216202349), UINT64_C(4153837486827862102))) >> 51;
   out[i] = carry - q * UINT64_C(10000000000000000);
   carry = q;
  }
@@ -42,7 +42,7 @@ static void recover_answer_17(
  FFT_DOUBLE_ULIMB carry = 0;
  for (size_t i = 0; i < nout; ++i) {
   carry += crt2(a1[i], a2[i]);
-  FFT_DOUBLE_ULIMB q = (big_mulh((carry), UINT64_C(702278666647013315), UINT64_C(13292279957849158729))) >> 56;
+  FFT_DOUBLE_ULIMB q = (big_mulh(carry, UINT64_C(702278666647013315), UINT64_C(13292279957849158729))) >> 56;
   out[i] = carry - q * UINT64_C(100000000000000000);
   carry = q;
  }

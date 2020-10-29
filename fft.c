@@ -578,11 +578,8 @@ FFT_DOUBLE_ULIMB crt2(FFT_ULIMB x1, FFT_ULIMB x2)
 
     FFT_ULIMB a2 = redc(
         FFT_CRT_R12_FACTOR,
-#if 0
-        modp_sub(x2, a1, &FFT_field_2),
-#else
+        // 'x2 - a1 + FFT_field_2.p' is unadjusted, this is fine; see the comment for "redc".
         x2 - a1 + FFT_field_2.p,
-#endif
         &FFT_field_2);
 
     return a1 + full_prod(a2, FFT_field_1.p);

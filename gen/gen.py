@@ -228,14 +228,12 @@ def main():
     parser.add_argument(
         'platform',
         help='platform word size',
-        type=lambda x: platforms[x],
-        choices=platforms)
+        type=lambda x: platforms[x])
 
     parser.add_argument(
         'action',
         help='action to perform',
-        type=lambda x: actions[x],
-        choices=actions)
+        type=lambda x: actions[x])
 
     args = parser.parse_args()
 
