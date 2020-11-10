@@ -160,17 +160,16 @@ int main()
     char *b = read_number_str();
     size_t nb = strlen(b);
 
-    size_t nres = x_add_zu(na, nb);
-
-    int base_log = max_base_log(nres);
+    int base_log = max_base_log(na < nb ? na : nb);
     if (base_log < 0) {
         fprintf(stderr, "Transform of such large size is not supported.\n");
         abort();
     }
 
-    size_t nlimbs_m = div_ceil_zu(na > nb ? na : nb, base_log);
-    size_t nlimbs_r = div_ceil_zu(nres, base_log);
-    size_t n = x_calc_fft_size(2 * nlimbs_m);
+    size_t nlimbs_a = div_ceil_zu(na, base_log);
+    size_t nlimbs_b = div_ceil_zu(nb, base_log);
+    size_t nlimbs_r = x_add_zu(nlimbs_a, nlimbs_b);
+    size_t n = x_calc_fft_size(nlimbs_r);
 
     FFT_ULIMB *mem = x_calloc(sizeof(FFT_ULIMB), x_add_zu(4, x_mul_zu(n, 5)));
 

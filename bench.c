@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static void die_oom(void)
 {
@@ -53,26 +54,38 @@ static void write_arg(FFT_ULIMB *p, size_t n, size_t ndigits, unsigned base_log)
         p[i] = 0;
 }
 
-static size_t x_get_fft_size(unsigned method, size_t m)
+static size_t x_fft_size_aux(size_t init_factor, size_t m)
 {
-    size_t n;
-
-    switch (method) {
-    case 1:
-    case 6:
-        n = 1;
-        break;
-    case 4:
-        n = 3;
-        break;
-    default:
-        fprintf(stderr, "Unknown method: %u (expected either of: 1 4 6)\n", method);
-        abort();
-    }
-
+    size_t n = init_factor;
     while (n < m)
         n = x_mul_zu(n, 2);
     return n;
+}
+
+static size_t x_get_fft_size(unsigned *method, size_t m)
+{
+    switch (*method) {
+    case 1:
+    case 6:
+        return x_fft_size_aux(1, m);
+    case 4:
+        return x_fft_size_aux(3, m);
+    case 0:
+        {
+            size_t n_simple = x_fft_size_aux(1, m);
+            size_t n_fourstep = x_fft_size_aux(3, m);
+            if (n_simple < n_fourstep) {
+                *method = 1;
+                return n_simple;
+            } else {
+                *method = 4;
+                return n_fourstep;
+            }
+        }
+    default:
+        fprintf(stderr, "Unknown method: %u (expected either of: 0 1 4 6)\n", *method);
+        abort();
+    }
 }
 
 static int max_base_log(size_t ndigits)
@@ -105,21 +118,18 @@ int main(int argc, char **argv)
     size_t ndigits = x_parse_zu(argv[2]);
     size_t nrepeat = x_parse_zu(argv[3]);
 
-    size_t nres = x_mul_zu(ndigits, 2);
-
-    int base_log = max_base_log(nres);
+    int base_log = max_base_log(ndigits);
     if (base_log < 0) {
         fprintf(stderr, "Transform of such large size is not supported.\n");
         abort();
     }
 
-    fprintf(stderr, "base: 10^%d\n", base_log);
-
     size_t nlimbs_arg = div_ceil_zu(ndigits, base_log);
-    size_t nlimbs_r = div_ceil_zu(nres, base_log);
-    size_t n = x_get_fft_size(method, nlimbs_arg * 2);
+    size_t nlimbs_r = x_mul_zu(nlimbs_arg, 2);
+    size_t n = x_get_fft_size(&method, nlimbs_r);
 
-    fprintf(stderr, "fft size: %zu\n", n);
+    fprintf(stderr, "method=%u, ndigits=%zu, nrepeat=%zu | base=10^%d, fft_size=%zu\n",
+            method, ndigits, nrepeat, base_log, n);
 
     FFT_ULIMB *mem = xcalloc(sizeof(FFT_ULIMB), x_add_zu(4, x_mul_zu(n, 5)));
 
@@ -128,6 +138,8 @@ int main(int argc, char **argv)
     FFT_ULIMB *a2      = mem + 2 * n + 2;
     FFT_ULIMB *b2      = mem + 3 * n + 3;
     FFT_ULIMB *scratch = mem + 4 * n + 4;
+
+    clock_t t = clock();
 
     for (size_t i = 0; i < nrepeat; ++i) {
         write_arg(a1, n, ndigits, base_log);
@@ -152,6 +164,9 @@ int main(int argc, char **argv)
 
         fft_recover_answer(a1, nlimbs_r, a1, a2, base_log);
     }
+
+    t = clock() - t;
+    printf("%.4f\n", ((double) t) / CLOCKS_PER_SEC);
 
     free(mem);
     return 0;

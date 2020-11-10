@@ -1,0 +1,794 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage{standalone}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{mathrsfs}
+\usepackage{eufrak}
+\usepackage{cite}
+
+\makeatletter
+
+\newcommand{\redc}{\underline{\mathrm{REDC}}}
+
+\newcommand*{\mydiv}{%
+  \nonscript\mskip-\medmuskip\mkern5mu%
+  \mathbin{\operator@font div}\penalty900\mkern5mu%
+  \nonscript\mskip-\medmuskip
+}
+\newcommand*{\mymod}{%
+  \nonscript\mskip-\medmuskip\mkern5mu%
+  \mathbin{\operator@font mod}\penalty900\mkern5mu%
+  \nonscript\mskip-\medmuskip
+}
+\newsavebox{\@brx}
+\newcommand{\myllangle}[1][]{\savebox{\@brx}{\(\m@th{#1\langle}\)}%
+  \mathopen{\copy\@brx\kern-0.5\wd\@brx\usebox{\@brx}}}
+\newcommand{\myrrangle}[1][]{\savebox{\@brx}{\(\m@th{#1\rangle}\)}%
+  \mathclose{\copy\@brx\kern-0.5\wd\@brx\usebox{\@brx}}}
+\makeatother
+
+\title{Speeding up decimal multiplication}
+\author{Viktor Krapivensky}
+\date{%
+    \today
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+    Decimal multiplication is the task of multiplying two numbers in base $10^N.$
+    Specifically, we focus on the number-theoretic transform (NTT) family of algorithms.
+    Using only portable techniques, we achieve a 3x---5x speedup over the \textbf{mpdecimal} library.
+    In this paper we describe our implementation and discuss further possible optimizations.
+    Our contributions are the following:
+    (1) the ``linearity trick'' for using Montgomery reduction with NTT without separate steps of conversion into/out of Montgomery form;
+    (2) a simple cache-oblivious algorithm for in-place $2n \times n$ or $n \times 2n$ matrix transposition, the need for which arises in the ``six-step algorithm'' variation of the matrix Fourier algorithm, and which does not seem to be widely known.
+    Notable findings include:
+    (1) use of two prime moduli instead of three makes sense even considering the worst case of increasing the size of the input, and makes for simpler answer recovery;
+    (2) the ``six-step algorithm'', supposedly fast for large transforms due to cache-friendliness, is of little use on modern systems for transforms of sizes up to $\approx 2^{27}.$
+\end{abstract}
+
+\section{Introduction}
+
+Fast multiplication of large decimal numbers is of interest in computer algebra systems, arbitrary precision calculators like \textbf{bc}, and generally software that needs to present the result of some calculations in decimal form.
+Since conversion from binary to decimal and vice versa takes $\Theta(\mathscr{M}(n) \log n)$ time, where $\mathscr{M}(n)$ is the time needed to multiply two numbers of size $n,$
+it makes sense to keep the base decimal if the calculations themselves take $o(\mathscr{M}(n) \log n)$ time. Otherwise, it might be better to pay the cost of conversions and perform the calculations in binary,
+as the binary form, being native for computers, has lower hidden constant. Also, as far as NTT is concerned, the binary form allows for better granularity when deciding how many ``digits'' to pack into a single word.
+
+It is a common theme in practical analysis of algorithms that ``fancy'' algorithms are slow when $n$ is small.
+For example, virtually all partical implementations of the ``fancy'' sorting algorithms that are divide-and-conquer in nature --- quick sort and merge sort --- do in fact fall back to ``dumb'' quadratic sorts if the size of the input if less than some threshold.
+In some cases, it is not even a matter of ``fancy'' versus ``dumb'' dichotomy, but rather there is a ``hierarchy of fanciness'':
+a group of algorithms with different asymptotic behavior such that it makes sense to use each one of them only for some range of values of $n.$
+To give an example, \textbf{libgmp} employs the following ``hierarchy of fanciness'' for multiplication:
+first goes the ``basecase'' (quadratic) algorithm; then, the Karatsuba algorithm; then, variations of the Toom-Cook algorithm (Toom-3; then Toom-4; then Toom-6.5; then Toom-8.5); finally, the Schönhage--Strassen algorithm (which is Fourier transform-based).
+
+Indeed, for smaller sizes of the multiplicands, it does makes sense to use quadratic, Karatsuba or Toom-Cook algorithms;
+as $n$ gets large, however, asymptotic considerations start to outweigh.
+For multiplication, this means that different variations of the fast Fourier transform start to be used.
+
+\section{Overview of the discrete Fourier transform}
+
+The plan of this section is as follows:
+\begin{itemize}
+
+    \item First, we define the notion of cyclic convolution for an arbitrary algebraic ring.
+
+    \item Next, we show how to reduce multiplication of two integers $x, \, y$ in base $B,$ such that
+          $x \in [0; B^n - 1], \, y \in [0; B^m - 1],$
+          to cyclic convolution of size $n+m$ (or of any larger size) over ring $\mathbb{Z}$ with some
+          special properties: inputs to such a convolutions are in
+          $[0; B-1]$
+          and outputs are in
+          $[0; (B-1)^2 \min\{n, m\}].$
+
+    \item Then, we introduce discrete Fourier transform (DFT) and inverse discrete Fourier transform (IDFT)
+          in their general form --- over an algebraic field $\mathcal{F}.$
+          We show the connection between cyclic convolution and DFT/IDFT.
+          We will learn that, employing fast Fourier transform (FFT) for DFT and IDFT, it is possible to
+          compute cyclic convolutions over $\mathcal{F}$ efficiently.
+
+    \item Finally, we discuss how different Fourier transform-based algorithms for integer
+          multiplication employ different strategies to reduce the computation of cyclic
+          convolutions over $\mathbb{Z}$ to cyclic convolutions over different algebraic fields.
+\end{itemize}
+
+The following notation is employed throughout this section:
+$$\langle x_0, \ldots, x_{n-1} \rangle [i] = x_i.$$
+
+By $\mathbb{N}$ we mean $\{0, 1, 2, \ldots\}.$
+
+\subsection{Cyclic convolution}
+
+We now define the cyclic convolution.
+Consider an aribtrary algebraic ring $\mathcal{R}.$
+The cyclic convolution $x \star y, \, \star \colon \mathcal{R}^n \times \mathcal{R}^n \to \mathcal{R}^n$ is defined as follows:
+$$(x \star y)[k] = \sum\limits_{i=0}^{n - 1} x[i] y[(k - i) \mymod n].$$
+
+\subsection{Multiplication via cyclic convolution over $\mathbb{Z}$}
+
+Let us now fix a base $B \in \mathbb{N}, \, B > 1,$ and introduce the following notation:
+$$\myllangle x_0, \ldots, x_{n-1} \myrrangle = \sum\limits_{i=0}^{n-1} x_i B^i,$$
+where $x_i \in \mathbb{N}, \, x_i < B.$ In order words, square brackets mean zero-based tuple indexing.
+
+Let us say we want to multiply
+$x = \myllangle x_0, \ldots, x_{n-1} \myrrangle$
+and
+$y = \myllangle y_0, \ldots, y_{m-1} \myrrangle.$
+
+This is to say, we want to find the product
+$z = xy = \myllangle z_0, \ldots, z_{n+m-1} \myrrangle.$
+
+We compute the following cyclic convolution (over the ring of $\mathbb{Z}$):
+$$\langle c_0, \ldots, c_{n+m-1} \rangle =
+\langle x_0, \ldots, x_{n-1}, \underbrace{0, \ldots, 0}_{\text{$m$ zeros}} \rangle
+\star
+\langle y_0, \ldots, y_{m-1}, \underbrace{0, \ldots, 0}_{\text{$n$ zeros}} \rangle.$$
+
+Note that $c_i \le (B-1)^2 \min\{n, m\}$ as $x_i < B, \, y_i < B,$
+and, because of our zero padding, the summation in the definition of the cyclic convolution
+can have at most $\min\{n,m\}$ non-zero summands.
+
+The representation of $z$ in base $B$ can then be recovered by the following iterative process:
+\begin{eqnarray*}
+\sigma_0 &=& 0; \\
+z_i &=& (\sigma_i + c_i) \mymod B; \\
+\sigma_{i+1} &=& (\sigma_i + c_i) \mydiv B.
+\end{eqnarray*}
+
+It would be useful to obtain some upper bound on the value of $\sigma_i.$
+
+Define $L = (B-1)^2 \min\{n,m\}$ and remember $c_i \le L.$
+Define also the following sequence:
+$$a_0 = 0, \, a_{i+1} = (a_i + L) \mydiv B.$$
+
+Clearly $\sigma_i \le a_i$ irrespective of the concrete values of $\langle c_0, \ldots, c_{n+m-1} \rangle.$
+
+Define another sequence by
+$$a^\prime_0 = 0, \, a^\prime_{i+1} = (a^\prime_i + L) / B.$$
+
+Now $a^\prime_i \ge a_i$ and
+$$a^\prime_i =
+\sum\limits_{j=0}^{i-1} \frac{L}{B^{i - j}} =
+\sum\limits_{j=1}^{i} \frac{L}{B^j} =
+L \sum\limits_{j=1}^{i} \frac{1}{B^j}.$$
+
+We have
+$$\sigma_i \le a_i \le a^\prime_i < \lim\limits_{i \to \infty} a'_i = \frac{L}{B - 1} = (B-1)\min\{n, m\}.$$
+
+We have thus reduced multiplication of $n$-digit $x$ and $m$-digit $y$ to a convolution of size
+$n+m.$ But note that, for any $k \in \mathbb{N},$
+$$\myllangle x_0, \ldots, x_{n-1} \myrrangle = \myllangle x_0, \ldots, x_{n-1}, \underbrace{0, \ldots, 0}_{\text{$k$ zeros}} \myrrangle,$$
+so we can as well reduce it to a convolution of any size $n+k+m \ge n+m$ by padding $x$ (or, similarly, $y$)
+with $k$ higher zeros and ignoring the higher $k$ elements of the resulting vector.
+
+\subsection{Discrete Fourier transform}
+
+We fix an algebraic field $\mathcal{F}$ and the length of transform, $N \in \mathbb{N}.$
+
+We will pretend natural numbers are in $\mathcal{F}$ by adopting the following identity:
+$$n = \underbrace{\overline{1} + \overline{1} + \cdots + \overline{1}}_\text{$n$ times},$$
+where $\overline{1} \in \mathcal{F}$ is the multiplicative identity in $\mathcal{F};$ the degenerate case of this identity is $0 = \overline{0},$
+where $\overline{0} \in \mathcal{F}$ is the additive identity in $\mathcal{F}.$
+
+We require that there exists a principal root of unity of order $N$ in $\mathcal{F}$:
+such $\xi \in \mathcal{F}$ that $\xi^N = 1$ and
+$$\sum\limits_{i=0}^{N-1} \xi^{ik} = 0$$
+for every $0 < k < N.$ We fix one such $\xi.$
+
+We also require that $N$ be invertible (i.e., non-zero) in $\mathcal{F}.$
+
+Discrete Fourier transform $\mathfrak{f} \colon \mathcal{F}^N \to \mathcal{F}^N$ is then defined as follows:
+$$\mathfrak{f}(x)[k] = \sum\limits_{i=0}^{N-1} x[i] \xi^{ik}.$$
+
+Inverse discrete Fourier transform $\mathfrak{f}^{-1} \colon \mathcal{F}^N \to \mathcal{F}^N$ is defined similarly,
+up to the negated exponent of $\xi$ and multiplication by $N^{-1}$:
+$$\mathfrak{f}^{-1}(x)[k] = N^{-1} \sum\limits_{i=0}^{N-1} x[i] \xi^{-ik}.$$
+
+It is easy to see that both $\mathfrak{f}$ and $\mathfrak{f}^{-1}$ are linear, which means that for any
+$\alpha \in \mathcal{F}$ and $x \in \mathcal{F}^N,$
+$\mathfrak{f}(\alpha x) = \alpha \mathfrak{f}(x)$
+and
+$\mathfrak{f}^{-1}(\alpha x) = \alpha \mathfrak{f}^{-1}(x).$ Here, the product of a scalar and a vector
+$\alpha v = \alpha \langle v_0, \ldots, v_{n-1} \rangle$ denotes, as usual,
+$\langle \alpha v_0, \ldots, \alpha v_{n-1} \rangle.$
+
+The convolution theorem says that, for any two vectors $x, y \in \mathcal{F}^N,$
+$$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
+where $\cdot$ denotes scalar (element-wise) product.
+
+There are algorithms for computing both discrete Fourier transform and inverse discrete Fourier transform
+efficiently --- in $O(N \log N)$ time, provided that addition and multiplication
+in $\mathcal{F}$ take $O(1)$ time. Any such algorithm is called a fast Fourier transform (FFT).
+
+Although an $O(N \log N)$ FFT algorithm exists that works for arbitrary $N,$ even prime,
+the most widely used FFT algorithm, the Cooley---Tukey algorithm,
+works by rewriting a composite $N = N_1 N_2$ into $N_1$ smaller transforms of size $N_2.$
+Thus, it works only for the values of $N$ which are highly composite;
+particularly when $N$ is a power of two.
+
+\subsection{Complex FFT using floating point}
+
+The obvious approach to calculate a cyclic convolution over $\mathbb{Z}$ is to pick a field that
+contains $\mathbb{Z}$ and has principal roots of unity of any order --- namely, $\mathbb{C},$ the
+field of complex numbers.
+A principal root of unity of order $n$ can then be expressed by the formula $e^{2 \pi i / n}.$
+This is the core of the ``FFT multiplication'' algorithm usually taught in classes:
+approximate $\mathbb{C}$ with a pair of double-precision floating point values, compute the
+convolution and round the results back to integers.
+
+The main drawback of this algorithm is the precision issues.
+Formally, it is not even a sound algorithm for multiplication: provided that the precision of
+your floating-point values is bounded, you can not multiply arbitrarily large numbers with it: at
+some point, you are going to get a round-off error large enough to produce a wrong digit in the
+answer.
+
+In order to get a provably correct answer, you have to put less bits of information into the
+floating-point values than otherwise possible. Because of that, in order to achieve performance
+parity with multiplication algorithms that abstain from use of floating point, platform-specific
+SIMD extensions are often used. Also, in order to get a provably correct result, you need to know
+the precision of your floating-point types, as well as possible quirks of their implementation ---
+i.e., depend on the platform.
+
+\subsection{Number-theoretic transform}
+
+For any prime number $p,$ there exists the finite field $\mathrm{F}_p$ of integers modulo
+$p.$ The number-theoretic transform is defined as the discrete Fourier transform in
+$\mathrm{F}_p,$ for some prime $p.$
+Note that $\mathrm{F}_p$ contains a principal root of unity of order $n$ if and only if $n$ divides $(p-1).$
+
+We will now discuss the application of number-theoretic transform to integer multiplication.
+
+First note that, in practice, it is always possible to obtain a reasonable upper bound on the length
+of numbers we would ever need to multiply.
+Let us thus say we have chosen the maximum length of a multiplicand, $M \in \mathbb{N}.$
+
+One approach is to pick a prime $p > (B-1)^2 M$ and perform computations in
+$\mathrm{F}_p.$
+Remember that the inputs to the convolution over $\mathbb{Z}$ we need to compute are in $[0; B-1]$
+and outputs are in $[0; (B-1)^2 M],$ so doing calculations modulo $p$ would never result
+in an ambiguity.
+Note that, generally speaking, we would need to round the size of the convolution, $N,$ up to some
+divisor of $(p-1)$ in order to guarantee the existence of principal root of unity of order $N.$
+We thus need to choose $p$ such that $(p-1)$ is highly composite.
+
+Another approach is to pick a number of pairwise distinct primes, $p_1, \ldots, p_n,$ such that
+$$\prod\limits_{i=1}^{n} p_i > (B-1)^2 M.$$
+Then, for each $i,$ compute the convolution vector in $\mathrm{F}_{p_i}$ and use
+the Chinese remainder theorem to recover the actual answer.
+In this case, we would need to round the size of the convolution, $N,$ up to some divisor of
+$$\gcd(p_1 - 1, \ldots, p_n - 1).$$
+We thus need to choose $p_1, \ldots, p_n$ such that this value is highly composite.
+
+Note that the latter approach is just a generalization of the first one:
+just assume that $\gcd(p-1) = p-1.$
+
+Remember also that the ``high compositeness'' of $N,$ which must divide $\gcd(p_1 - 1, \ldots, p_n - 1),$ is required
+for the Cooley-Tukey algorithm to work on a length-$N$ transform. What a coincidence!
+
+\section{Choice of high-level algorithm}
+
+Having chosen the number-theoretic transform, we now need to decide on the following:
+
+\begin{itemize}
+    \item what number of primes to use, and of what size (in machine words);
+
+    \item what power of $10$ to choose as the base $B;$
+
+    \item how to find primes with the qualities we desire.
+\end{itemize}
+
+\subsection{Choosing the size of primes in machine words}
+
+All real-life hardware platforms have the notion of machine word; typically, we can natively add and
+subtract machine words, and get the product of two machine words as a two-word value. The size of
+the pointer is also typically limited to the machine word.
+Suppose the machine word is $w$ bits long; define $\mu = 2^w.$
+
+Let us fix, for every $\ell \ge 1,$ some representation in memory for elements of $\mathrm{F}_p,$
+where $p$ is $\ell$ words long prime; this means that $\mu^{\ell - 1} < p < \mu^\ell.$
+We then define the following functions:
+\begin{itemize}
+    \item $C_{\mathrm{Add}}(\ell),$ the cost of addition of two elements in $\mathrm{F}_p$ for $\ell$-word $p;$
+    \item $C_{\mathrm{Sub}}(\ell),$ the cost of subtraction of two elements in $\mathrm{F}_p$ for $\ell$-word $p;$
+    \item $C_{\mathrm{Mul}}(\ell),$ the cost of multiplication of two elements in $\mathrm{F}_p$ for $\ell$-word $p.$
+\end{itemize}
+
+Let us assume the following:
+\begin{itemize}
+
+    \item $\ell \cdot C_{\mathrm{Add}}(1) \le C_{\mathrm{Add}}(\ell).$
+      Indeed, it should be impossible to add (subtract, compare) $\ell$-word numbers faster than
+      doing $\ell$ single-word additions (subtractions, comparisons).
+      Note that addition modulo $p$ is normally implemented as simple addition, comparison with
+      $p$ (assuming no overflow) and conditional subtraction.
+
+    \item $\ell \cdot C_{\mathrm{Sub}}(1) \le C_{\mathrm{Sub}}(\ell).$
+      Similar to the above: subtraction modulo $p$ is normally implemented as simple subtraction,
+      underflow test and conditional addition.
+
+    \item $\ell \cdot C_{\mathrm{Mul}}(1) < C_{\mathrm{Mul}}(\ell)$ for $\ell > 1.$
+      Assume $\ell$ is small enough that the optimal way to multiply two $\ell$-word numbers is the
+      ``dumb'' quadratic algorithm.
+      Even not considering the cost of reduction modulo $p,$
+      the cost of ``raw'' multiplication of two $\ell$-word numbers into $2\ell$-word number is
+      $\ell^2$ single-word multiplications with some additions, as opposed to just $\ell$
+      single-word multiplications that the left-hand side of this inequality attempts to express.
+
+\end{itemize}
+
+Fix then a fast Fourier transform algorithm.
+For a transform size of $N,$ it does $\Upsilon_{\mathrm{Add}}(N)$ additions, $\Upsilon_{\mathrm{Sub}}(N)$ subtractions, and $\Upsilon_{\mathrm{Mul}}(N)$
+multiplications over $\mathrm{F}_p.$ We assume it does no divisions in $\mathrm{F}_p,$ which is a reasonable assumption if we have inverses in $\mathrm{F}_p$
+to all possible values of $N$ pre-calculated.
+
+We now want to compare the approach of using $\ell > 1$ pairwise distinct single-word primes against the approach of using a single $\ell$-word prime.
+By our assumptions,
+   $$\ell \big( C_{\mathrm{Add}}(1) \Upsilon_{\mathrm{Add}}(N) + C_{\mathrm{Sub}}(1) \Upsilon_{\mathrm{Sub}}(N) + C_{\mathrm{Mul}}(1) \Upsilon_{\mathrm{Mul}}(N) \big)$$
+is less than
+   $$C_{\mathrm{Add}}(\ell) \Upsilon_{\mathrm{Add}}(N) + C_{\mathrm{Sub}}(\ell) \Upsilon_{\mathrm{Sub}}(N) + C_{\mathrm{Mul}}(\ell) \Upsilon_{\mathrm{Mul}}(N),$$
+if $\Upsilon_{\mathrm{Mul}}(N) > 0.$
+
+This means that using $\ell$ distinct single-word primes is better;
+the same argument can be invoked to show that using an ensemble of
+primes of mixed word lengths is suboptimal compared to an ensemble of single-word primes.
+
+Note that we do not consider the cost of answer recovery here,
+because the transform part is $\Theta(N \log N)$
+and the answer recovery part is $\Theta(N);$
+and, in practice, the transform part dominates.
+
+Neither does our analysis consider cache efficiency, which ought to be better for $\ell$ distinct
+single-word primes.
+
+\subsection{Choosing the number of primes}
+
+Let us now choose the number of primes, $\ell.$
+Remember $\mu = 2^w,$ where $w$ is the length of the machine word in bits.
+Remember also that we want to pick $p_1, \ldots, p_\ell$ such that
+$$\prod\limits_{i=1}^{\ell} p_i > (B-1)^2 M,$$
+where $M$ is the maximum length of a multiplicand possible.
+
+We will require $p_i < \mu/2$ for simpler implementation of addition modulo $p_i.$
+If this does not hold, then, during addition of two numbers modulo $p_i,$ the raw sum may overflow
+the machine word, and the implementation would need to check for two conditions instead of just
+one: we would need to subtract $p_i$ (modulo $\mu$) from the result if either the overflow happened
+or the result is greater or equal to $p_i.$
+
+Having fixed $\mu = 2^w$ and $M,$ and assuming all $p_1, \ldots, p_\ell$ will be
+approximately equal to $\mu/2,$ we can define the following function:
+$$\lambda(\ell) = \max\{n \in \mathbb{N} : ({10}^n - 1)^2 < (\mu / 2)^\ell / M\}.$$
+Then, once we choose $\ell,$ we calculate $\lambda(\ell)$ and, assuming it is positive, we can put
+$B = {10}^{\lambda(\ell)}.$ If $\lambda(\ell) = 0,$ the chosen value of $\ell$ is too small; more
+prime moduli are needed.
+
+Note that we do not require $B \le \mu$ here; this may seem strange, but this
+only impacts initialization and answer recovery stages, which are $\Theta(N),$ and may potentially
+speed up the transform stage, which is $\Theta(N \log N).$
+
+Let us calculate the values of $\lambda(\ell)$ for $\mu \in \{2^{32}, 2^{64}\},$ $M \in \{2^{15}, 2^{20}, 2^{25}\}$ and $\ell \in \{1,2,3,4\}.$
+
+Note the meaning of $\lambda(\ell) / \ell$: if a multiplicand has $n$ digits in base ten, it will
+have $\lceil n / \lambda(\ell) \rceil$ digits in base $B = 10^{\lambda(\ell)};$ but we will need to perform $\ell$
+transforms: one for each prime modulo. The ratio $\lambda(\ell) / \ell,$ thus, is approximately the
+``speedup factor'' over doing a single transform with $B = 10.$
+
+First, for $\mu = 2^{64}$:
+
+\medskip
+
+\begin{tabular}{ lll }
+
+\begin{tabular}{ |c|c|c| }
+ \hline
+ \multicolumn{3}{|c|}{ $M=2^{15}$ } \\
+ \hline\hline
+  $\ell$ & $\lambda(\ell)$ & $\lambda(\ell) / \ell$ \\
+ \hline\hline
+  $1$ & $7$ & $7.0000$ \\
+ \hline
+  $2$ & $16$ & $8.0000$ \\
+ \hline
+  $3$ & $26$ & $8.6667$ \\
+ \hline
+  $4$ & $35$ & $8.7500$ \\
+ \hline
+\end{tabular}
+&
+\begin{tabular}{ |c|c|c| }
+ \hline
+ \multicolumn{3}{|c|}{ $M=2^{20}$ } \\
+ \hline\hline
+  $\ell$ & $\lambda(\ell)$ & $\lambda(\ell) / \ell$ \\
+ \hline\hline
+  $1$ & $6$ & $6.0000$ \\
+ \hline
+  $2$ & $15$ & $7.5000$ \\
+ \hline
+  $3$ & $25$ & $8.3333$ \\
+ \hline
+  $4$ & $34$ & $8.5000$ \\
+ \hline
+\end{tabular}
+&
+\begin{tabular}{ |c|c|c| }
+ \hline
+ \multicolumn{3}{|c|}{ $M=2^{25}$ } \\
+ \hline\hline
+  $\ell$ & $\lambda(\ell)$ & $\lambda(\ell) / \ell$ \\
+ \hline\hline
+  $1$ & $5$ & $5.0000$ \\
+ \hline
+  $2$ & $15$ & $7.5000$ \\
+ \hline
+  $3$ & $24$ & $8.0000$ \\
+ \hline
+  $4$ & $34$ & $8.5000$ \\
+ \hline
+\end{tabular}
+\end{tabular}
+
+\medskip
+
+Then, for $\mu = 2^{32}$:
+
+\medskip
+
+\begin{tabular}{ lll }
+
+\begin{tabular}{ |c|c|c| }
+ \hline
+ \multicolumn{3}{|c|}{ $M=2^{15}$ } \\
+ \hline\hline
+  $\ell$ & $\lambda(\ell)$ & $\lambda(\ell) / \ell$ \\
+ \hline\hline
+  $1$ & $2$ & $2.0000$ \\
+ \hline
+  $2$ & $7$ & $3.5000$ \\
+ \hline
+  $3$ & $11$ & $3.6667$ \\
+ \hline
+  $4$ & $16$ & $4.0000$ \\
+ \hline
+\end{tabular}
+&
+\begin{tabular}{ |c|c|c| }
+ \hline
+ \multicolumn{3}{|c|}{ $M=2^{20}$ } \\
+ \hline\hline
+  $\ell$ & $\lambda(\ell)$ & $\lambda(\ell) / \ell$ \\
+ \hline\hline
+  $1$ & $1$ & $1.0000$ \\
+ \hline
+  $2$ & $6$ & $3.0000$ \\
+ \hline
+  $3$ & $10$ & $3.3333$ \\
+ \hline
+  $4$ & $15$ & $3.7500$ \\
+ \hline
+\end{tabular}
+&
+\begin{tabular}{ |c|c|c| }
+ \hline
+ \multicolumn{3}{|c|}{ $M=2^{25}$ } \\
+ \hline\hline
+  $\ell$ & $\lambda(\ell)$ & $\lambda(\ell) / \ell$ \\
+ \hline\hline
+  $1$ & $0$ & $0$ \\
+ \hline
+  $2$ & $5$ & $2.5000$ \\
+ \hline
+  $3$ & $10$ & $3.3333$ \\
+ \hline
+  $4$ & $14$ & $3.5000$ \\
+ \hline
+\end{tabular}
+\end{tabular}
+
+\medskip
+
+First, note the phenomenon of diminishing returns: consider, for example, $\mu = 2^{64}, M=2^{20};$
+the speedup factor of using $\ell=2$ over $\ell=1$ is $7.5 / 6 = 1.25,$
+while the speedup factor of $\ell=3$ over $\ell=2$ is $8.3333 / 7.5 = 1.1111;$
+and the speedup factor of $\ell=4$ over $\ell=3$ is $8.5 / 8.3333 = 1.02.$
+
+At the same time, the larger $\ell$ is, the higher the costs of initialization and answer recovery
+are.
+
+Note also that, starting with $\ell=3,$ for any $2^{15} \le M \le 2^{25}$ and both $\mu=2^{32}$ and $\mu=2^{64},$
+the value of $B = 10^{\lambda(\ell)}$ becomes greater than $\mu;$ this means that we can not represent a value
+modulo $B$ with one machine word, which means more overhead (in both performance and complexity of the code) on
+initialization and answer recovery.
+
+We thus think it is wise to choose $\ell=2$ as a nice trade-off between the performance of the
+transform, costs of initialization and answer recovery, and complexity of the code.
+
+Note that the \textbf{mpdecimal} library uses $\ell = 3$ prime moduli with bases
+$B=10^{19}$ on 64-bit systems and $B=10^{9}$ on 32-bit systems; the speedup factors are
+$19/3=6.3333$ on 64-bit systems and $9/3=3$ on 32-bit systems.
+
+\subsection{Choosing the base}
+
+The definition of $\lambda(\ell)$ in the previous subsection gives us a way to calculate
+$B = 10^{\lambda(\ell)}$ given the values of $\mu,$ $M,$ and $\ell.$
+In practice, it is better to support multiple bases, each for its own range of transform lengths.
+This eliminates the need for picking the single maximum transform length $M$ and slowing down
+smaller transforms.
+
+Our implementation supports bases
+$\{ 10^{14}, 10^{15}, 10^{16}, 10^{17} \}$ on 64-bit systems; and bases
+$\{ 10^{5}, 10^{6}, 10^{7} \}$ on 32-bit systems.
+
+\subsection{Choosing the method of modular reduction}
+
+The most computationally expensive low-level operation that is carried out during the
+number-theoretic transform is modular multiplication. In order to multiply two elements of
+$\mathrm{F}_p,$ it is not enough to simply compute the raw product of values in $[0; p-1]$:
+we need to perform reduction modulo $p;$ although, as we will see, what it exactly means depends on
+the representation of elements.
+
+We discuss the methods of reduction now because one method requires prime moduli of special form;
+thus, our choice may affect our strategy of searching primes.
+
+\subsubsection{The naïve approach}
+
+The naïve method of modular reduction is to use, where available, a hardware instruction
+to divide two-words divident by single-word divisor into single-word quotient and single-word
+remainder. Where not available, we would have to emulate such an instruction in software.
+
+Note that such an instruction exists in x86 and x86-64.
+As for software emulation, both GNU GCC and Clang compilers provide \verb!uint64_t! type on 32-bit
+platforms, and \verb!unsigned __int128! type on 64-bit platforms,
+with support for the division operation.
+
+Unfortunately, this method is very slow. % TODO
+
+\subsubsection{Barrett reduction}
+
+A method intended to be faster, while not requiring a change in our representation of field
+elements, is know as Barrett reduction. % TODO cite
+
+It reduces $0 \le a < n^2$ modulo $n$ using some pre-computed value depending on $n.$
+For a $k$-bit modulo $n,$ it internally (not counting the raw multiplication $xy = a$) performs:
+\begin{itemize}
+    \item one multiplication of $(k+1)$ bits by $(2k)$ bits into a $(3k)$-bit value;
+    \item one multiplication of $k$ bits by $k$ bits, of which only the lowest $k$ bits are used.
+\end{itemize}
+
+\subsubsection{Montgomery reduction}
+
+A method even faster for our purposes, is Montgomery reduction.
+
+Remember we defined $w$ as the bit width of the machine word;
+define then $R = 2^w \in \mathrm{F}_p.$ We assume $p > 2,$ so $R$ is non-zero in $\mathrm{F}_p.$
+
+Then, the \textit{Montgomery representation} of $x \in \mathrm{F}_p$ is simply $Rx.$
+
+If $Rx$ is the Montgomery representation of $x,$ and $Ry$ is the Montgomery representation of $y,$
+then the Montgomery representation of $(x \pm y)$ is simply $(Rx \pm Ry)$ as $R(x \pm y) = Rx \pm Ry;$
+it means that Montgomery representations can be added and subtracted as ordinary values modulo $p.$
+
+The \textit{Montgomery reduction} is a function
+$\redc \colon \mathrm{F}_p \times \mathrm{F}_p \to \mathrm{F}_p$
+defined as follows:
+$$\redc(x, y) = R^{-1} x y.$$
+It is important because the Montgomery representation $R(x y)$ of the product $x y$ is
+$\redc(Rx, Ry).$ Also, any $x \in \mathrm{F}_p$ can be converted into Montgomery
+representation by invoking $\redc(x, R^2) = Rx;$ and out of Montgomery
+representation by invoking $\redc(x, 1) = R^{-1}x.$
+
+It is possible to compute $\redc$ efficiently; the algorithm internally
+(not counting the raw $xy$ multiplication)
+performs:
+\begin{itemize}
+    \item one multiplications of $w$ bits by $w$ bits into $(2w)$ bits;
+    \item one multiplications of $w$ bits by $w$, of which only the lowest $w$ bits are used.
+\end{itemize}
+This is more efficient than the Barrett reduction if one does not consider the cost of conversion
+into and out of Montgomery representation. In the case of number-theoretic transform, we can
+convert everything into Montgomery representations at the beginning (this is $\Theta(N)$ time),
+then perform the transform (this is $\Theta(N \log N)$ modular multiplications), and then
+convert everything out of Montgomery representation (this is, again, $\Theta(N)$ time).
+
+Better still, we can completely omit those conversions, instead mixing a factor into the final stage
+of multiplication by $N^{-1}$ in the inverse transform; see section~\ref{section:trick} for details.
+
+\subsubsection{Solinas primes}
+
+The \textbf{mpdecimal} library uses yet another method of modular reduction on 64-bit systems;
+it is based on the use of prime moduli of form $2^{64} - 2^{n} + 1.$
+Generally, such primes are knows as Solinas primes, defined as primes of form
+$f(2^m),$ where $f(x)$ is a low-degree polynomial with small integer coefficients.
+
+The single round of reduction modulo $p = 2^{64} - 2^{n} + 1$ is then defined as follows:
+$$r(2^{64} x_1 + x_0) = 2^{n} x_1 - x_1 + x_0,$$
+where $x_0, x_1 \in \mathbb{N}$ and $x_0, x_1 < 2^{64}.$
+After some small number of rounds (2---3 rounds for primes used in \textbf{mpdecimal}), the result
+is guaranteed to be less than $2p,$ after which it can be reduced modulo $p$ with a single
+conditional subtraction, just like with the Montgomery reduction.
+
+We benchmarked the ``best case'' of reduction modulo Solinas prime against Montgomery reduction;
+we used $2^{64} - 2^{32} + 1$ as the Solinas prime modulo; note the values of $64$ and $32$ are
+better for hardware (at least, for x86-64) because division and multiplication can be done by
+simply omitting (half-)words or assuming zero lower (half-)words, correspondingly, instead of
+actually shifting the bits. This prime also requires at most 2 rounds of reduction.
+
+We found that on modern system, reduction modulo Solinas prime is slower by $\approx$ 15\%;
+the code can be found in the \verb!bench-solinas! subdirectory of our repository.
+
+We think the most likely explanation for this finding is that, on modern x86-64 systems, hardware
+multipliers are sufficiently performant to render special schemes for reduction modulo a
+single-word $p$ useless, if Montgomery reduction can be used instead.
+
+\subsection{Searching for primes}
+
+Having chosen the Montgomery reduction, we are going search for primes of form
+$$c \cdot 3 \cdot 2^n + 1.$$
+
+The factor of $2^n$ here ensures that we will be able to perform transforms of length $2^m$ for any $m \le n;$
+and the factor of $3$ is here to ``smooth the stairs'', allowing us to perform transforms of length
+$3 \cdot 2^m$ for any $m \le n.$ Note that $3 \cdot 2^m = 1.5 \cdot 2^{m+1}$ is exactly the average
+of $2^{m+1}$ and $2^{m+2}.$
+
+Observe that, in order to guarantee the uniqueness of representation of a prime as
+$c \cdot 3 \cdot 2^n + 1,$
+we need to require $c$ to be odd --- otherwise a power of two can be factored out into $2^n.$
+
+Define $n_{\mathrm{min}} = \lceil \log_2(M/3) \rceil,$ the lower bound for $n$ in the formula for
+the desired form of our primes above.
+We have, then, the following requirements for each $p_i$:
+\begin{enumerate}
+    \item $p_i$ is of form $c \cdot 3 \cdot 2^n + 1,$ where $c$ is odd and $n \ge n_{\mathrm{min}};$
+    \item $p_i < \mu / 2.$
+\end{enumerate}
+Of all possible primes with those properties, we need to pick the $\ell$ largest.
+
+This leads us to the following algorithm, presented here as Python code:
+
+\begin{verbatim}
+def find_for_n(n, p_max, max_nyield):
+    """
+    Yields at most 'max_nyield' largest primes of form
+      p = c * 3 * 2**n + 1,
+    such that p <= p_max and 'c' is odd.
+    """
+
+    # Calculate the largest factor 'f' such that:
+    #   (1) f is odd;
+    #   (2) f is divisible by 3;
+    #   (3) f * 2**n + 1 <= p_max.
+
+    f = (p_max - 1) >> n
+    if f % 2 == 0:
+        f -= 1
+    while f % 3 != 0:
+        f -= 2
+
+    # Search for primes of form
+    #   (f - 6*i) * 2**n + 1,
+    # where i >= 0.
+
+    while f > 0 and max_nyield:
+        p = (f << n) + 1
+        if is_prime(p):
+            yield p
+            max_nyield -= 1
+        f -= 6
+
+
+def find_primes(n_min, w, ell):
+    """
+    Returns list of 'ell' largest primes of form
+      p = c * 3 * 2**n + 1,
+    where:
+      (1) n_min <= n <= (w - 3);
+      (2) p < 2**(w - 1);
+      (3) 'c' is odd.
+    """
+
+    result = []
+    p_max = (1 << (w - 1)) - 1
+    for n in range(n_min, w - 2):
+        result.extend(find_for_n(n, p_max, ell))
+    assert len(result) >= ell
+    return sorted(result)[-ell:]
+\end{verbatim}
+
+Note that it uses the external function \verb|is_prime|, which must perform primality testing.
+We use the Miller-Rabin primality test with the first 12 prime numbers as bases; it has been proven
+in \cite{primebases} that, for values less than $2^{64},$ this is enough to guarantee correctness.
+
+\section{The linearity trick}
+\label{section:trick}
+
+We are now returning to the Montgomery reduction.
+
+Remember we defined $R = 2^w \in \mathrm{F}_p,$ where $w$ is the length of machine word in bits;
+we assume $p > 2,$ so $R$ is non-zero in $\mathrm{F}_p.$
+
+Remember also we defined the function
+$\redc \colon \mathrm{F}_p \times \mathrm{F}_p \to \mathrm{F}_p$
+in the following way:
+$$\redc(x, y) = R^{-1} x y.$$
+
+Consider the field $\widetilde{\mathrm{F}}_p,$ which is the same as $\mathrm{F}_p,$ but
+having $\redc$ as the multiplication operation.
+It is a field isomorphic to $\mathrm{F}_p,$ with isomorphism
+$\varphi \colon \mathrm{F}_p \to \widetilde{\mathrm{F}}_p$ being $\varphi(x) = Rx.$
+
+If we fix a principal root of unity $\xi \in \mathrm{F}_p$ of order $N,$
+then $\widetilde{\xi} = R \xi$ will be a principal root of unity of order $N$ in
+$\widetilde{\mathrm{F}}_p.$
+
+We can consider, then,
+$\widetilde{\mathfrak{f}}$ and $\widetilde{\mathfrak{f}}^{-1},$
+the DFT and IDFT, correspondingly, for the field $\widetilde{\mathrm{F}}_p.$
+We have the following identities, by the isomorphism, for any $x \in \mathrm{F}_p^N$:
+\begin{eqnarray*}
+    \mathfrak{f}(x)         &=& R^{-1} \, \widetilde{\mathfrak{f}}(R \, x); \\
+    \mathfrak{f}^{-1}(x)    &=& R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(R \, x).
+\end{eqnarray*}
+
+Rewrite with $x = R^{-1}y$:
+\begin{eqnarray*}
+    \mathfrak{f}(R^{-1}y)       &=& R^{-1} \, \widetilde{\mathfrak{f}}(y); \\
+    \mathfrak{f}^{-1}(R^{-1}y)  &=& R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(y).
+\end{eqnarray*}
+
+Rewrite the left-hand sides by the linearity of $\mathfrak{f}$ and $\mathfrak{f}^{-1}$:
+\begin{eqnarray*}
+    R^{-1} \mathfrak{f}(y)       &=& R^{-1} \, \widetilde{\mathfrak{f}}(y); \\
+    R^{-1} \mathfrak{f}^{-1}(y)  &=& R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(y).
+\end{eqnarray*}
+
+Dividing both sides by $R^{-1},$ we see that $\mathfrak{f}(y)$ and $\widetilde{\mathfrak{f}}(y)$
+coincide for any $y = Rx;$ and so do $\mathfrak{f}^{-1}(y)$ and $\widetilde{\mathfrak{f}}^{-1}(y).$
+
+Let us now consider the cyclic convolution $\widetilde{\star}$ for $\widetilde{\mathrm{F}}_p;$
+we know that
+$$x \, \widetilde{\star} \, y = \widetilde{\mathfrak{f}}^{-1}
+\big( \thinspace \widetilde{\mathfrak{f}}(x) \, \widetilde{\otimes} \, \widetilde{\mathfrak{f}}(y) \big),$$
+where $\widetilde{\otimes}$ denotes element-wise $\redc$
+(which is, remember, the multiplication operation of $\widetilde{\mathrm{F}}_p.$)
+Having proven that
+$\widetilde{\mathfrak{f}} \equiv \mathfrak{f}$
+and
+$\widetilde{\mathfrak{f}}^{-1} \equiv \mathfrak{f}^{-1}$
+above, we can rewrite it as follows:
+$$x \, \widetilde{\star} \, y = R^{-1} \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
+where $\cdot$ denotes element-wise product.
+We can rewrite this as
+$$x \, \widetilde{\star} \, y = R^{-1}(x \star y).$$
+
+It means that, computing a cyclic convolution via DFT of both arguments, followed by element-wise
+multiplication, followed by IDFT, but using
+$\redc$ instead of regular multiplication during all those operation,
+gives us an extra factor of $R^{-1}.$
+
+Instead of converting both arguments into Montgomery representation
+(remember this conversion is just multiplication by $R$), performing $\widetilde{\star}$ and
+converting the result out of Montgomery representation (this is multiplication by $R^{-1}$),
+we can convert only one of the arguments; indeed,
+$$x \, \widetilde{\star} \, (Ry) = R^{-1}(x \star Ry) = x \star y.$$
+
+Alternatively, we can multiply the result by $R,$ not touching any of the arguments at all:
+$$R(x \, \widetilde{\star} \, y) = R R^{-1}(x \star y) = x \star y.$$
+
+The latter approach is preferable for us: the Cooley-Tukey IDFT performs multiplication by
+scalar $N^{-1}$ as a separate final stage; we can ``mix in'' the factor of $R$ into this stage
+essentially for free!
+
+Another advantage is that, it might be possible that we are computing the cyclic convolution of $x$
+with itself: the arguments have not just identical values, but the same location in memory; so
+multiplying one argument by $R$ automatically multiplies another by the same factor.
+
+\bibliography{paper}{}
+\bibliographystyle{plain}
+
+\end{document}

@@ -90,6 +90,3 @@ static const Field FFT_field_2 =
  /*inv_2=*/ FFT_ARRAY_2,
 };
 static const FFT_ULIMB FFT_CRT_R12_FACTOR = 1409286102;
-enum {
- FFT_MIN_K = 25,
-};

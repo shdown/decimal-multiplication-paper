@@ -1,7 +1,13 @@
 from utils import decompose_pow2, mod_pow
 
 
+# See: https://arxiv.org/pdf/1509.00864
+
+
 _BASES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37]
+
+
+_LIMIT = 1 << 64
 
 
 def _miller_rabin_round(n, a):
@@ -17,9 +23,15 @@ def _miller_rabin_round(n, a):
 
 
 def is_prime(n):
-    assert n > 40
-    assert n < (1 << 64)
-    assert (n & 1) != 0
+    if n >= _LIMIT:
+        raise ValueError('n is too large')
+
+    if n <= _BASES[-1]:
+        return n in _BASES
+
+    if (n & 1) == 0:
+        return False
+
     for base in _BASES:
         if not _miller_rabin_round(n, base):
             return False

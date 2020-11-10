@@ -268,7 +268,7 @@ void mk_special_pow_table(FFT_ULIMB w, FFT_ULIMB *out, size_t n, const Field *fi
 
 // Assumes n is a power of two.
 static inline FFT_FORCE_INLINE
-void mul_poly(
+void convolve(
         FFT_ULIMB *a, FFT_ULIMB *b, size_t n,
         FFT_ULIMB *scratch,
         const Field *field)
@@ -278,18 +278,21 @@ void mul_poly(
     // make table of powers for root (in Montgomery representation)
     mk_special_pow_table(field->root_M, scratch, n, field);
 
+#if ! FFT_USE_LINEARITY_TRICK()
     // convert a into Montgomery representation
     for (size_t i = 0; i < n; ++i)
         a[i] = redc(a[i], field->mont_r2modp, field);
+#endif
 
     // forward transform on a
     dif_full(a, n, scratch, field);
 
     if (b != a) {
+#if ! FFT_USE_LINEARITY_TRICK()
         // convert b into Montgomery representation
         for (size_t i = 0; i < n; ++i)
             b[i] = redc(b[i], field->mont_r2modp, field);
-
+#endif
         // forward transform on b
         dif_full(b, n, scratch, field);
     }
@@ -304,8 +307,14 @@ void mul_poly(
     // inverse transform on a (without division by n)
     dit_full(a, n, scratch, field);
 
+#if ! FFT_USE_LINEARITY_TRICK()
     // divide by n and convert out of Montgomery representation
     FFT_ULIMB factor = field->inv_2[order];
+#else
+    // divide by n and account for Montgomery stuff
+    FFT_ULIMB r3 = redc(field->mont_r2modp, field->mont_r2modp, field);
+    FFT_ULIMB factor = redc(r3, field->inv_2[order], field);
+#endif
     for (size_t i = 0; i < n; ++i)
         a[i] = redc(a[i], factor, field);
 }
@@ -407,7 +416,7 @@ void fourstep_inverse(
 
 // Assumes n = 3*2^k.
 static inline FFT_FORCE_INLINE
-void mul_poly_with_4step(
+void convolve_fourstep(
         FFT_ULIMB *a, FFT_ULIMB *b, size_t n,
         FFT_ULIMB *scratch,
         const Field *field)
@@ -531,7 +540,7 @@ void sixstep_inverse(
 
 // Assumes n is a power of two.
 static inline FFT_FORCE_INLINE
-void mul_poly_with_6step(
+void convolve_sixstep(
         FFT_ULIMB *a, FFT_ULIMB *b, size_t n,
         FFT_ULIMB *scratch,
         const Field *field)
@@ -620,8 +629,8 @@ void fft(
         FFT_ULIMB *scratch,
         size_t n)
 {
-    mul_poly(a1, b1, n, scratch, &FFT_field_1);
-    mul_poly(a2, b2, n, scratch, &FFT_field_2);
+    convolve(a1, b1, n, scratch, &FFT_field_1);
+    convolve(a2, b2, n, scratch, &FFT_field_2);
 }
 
 void fft_fourstep(
@@ -630,8 +639,8 @@ void fft_fourstep(
         FFT_ULIMB *scratch,
         size_t n)
 {
-    mul_poly_with_4step(a1, b1, n, scratch, &FFT_field_1);
-    mul_poly_with_4step(a2, b2, n, scratch, &FFT_field_2);
+    convolve_fourstep(a1, b1, n, scratch, &FFT_field_1);
+    convolve_fourstep(a2, b2, n, scratch, &FFT_field_2);
 }
 
 void fft_sixstep(
@@ -640,8 +649,8 @@ void fft_sixstep(
         FFT_ULIMB *scratch,
         size_t n)
 {
-    mul_poly_with_6step(a1, b1, n, scratch, &FFT_field_1);
-    mul_poly_with_6step(a2, b2, n, scratch, &FFT_field_2);
+    convolve_sixstep(a1, b1, n, scratch, &FFT_field_1);
+    convolve_sixstep(a2, b2, n, scratch, &FFT_field_2);
 }
 
 #if FFT_LIMB_BITS == 64

@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define FFT_USE_LINEARITY_TRICK() 0
+
 #if UINTPTR_MAX == 0xFFFFFFFFFFFFFFFFul && !defined(FFT_FORCE_32_BIT)
 #   define FFT_LIMB_BITS    64
 typedef uint64_t            FFT_ULIMB;
