@@ -8,7 +8,6 @@
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{mathrsfs}
-\usepackage{eufrak}
 \usepackage{cite}
 
 \makeatletter
@@ -108,7 +107,7 @@ By $\mathbb{N}$ we mean $\{0, 1, 2, \ldots\}.$
 
 We now define the cyclic convolution.
 Consider an aribtrary algebraic ring $\mathcal{R}.$
-The cyclic convolution $x \star y, \, \star \colon \mathcal{R}^n \times \mathcal{R}^n \to \mathcal{R}^n$ is defined as follows:
+The cyclic convolution $x \star y, \, (\_ \star \_) \colon \mathcal{R}^n \times \mathcal{R}^n \to \mathcal{R}^n$ is defined as follows:
 $$(x \star y)[k] = \sum\limits_{i=0}^{n - 1} x[i] y[(k - i) \mymod n].$$
 
 \subsection{Multiplication via cyclic convolution over $\mathbb{Z}$}
@@ -177,10 +176,9 @@ $$n = \underbrace{\overline{1} + \overline{1} + \cdots + \overline{1}}_\text{$n$
 where $\overline{1} \in \mathcal{F}$ is the multiplicative identity in $\mathcal{F};$ the degenerate case of this identity is $0 = \overline{0},$
 where $\overline{0} \in \mathcal{F}$ is the additive identity in $\mathcal{F}.$
 
-We require that there exists a principal root of unity of order $N$ in $\mathcal{F}$:
-such $\xi \in \mathcal{F}$ that $\xi^N = 1$ and
-$$\sum\limits_{i=0}^{N-1} \xi^{ik} = 0$$
-for every $0 < k < N.$ We fix one such $\xi.$
+We require that there exists a primitive $N$-th root of unity in $\mathcal{F}$:
+such $\xi \in \mathcal{F}$ that $\xi^N = 1$ and $\xi^k \ne 1$ for every $0 < k < N.$
+We fix one such $\xi.$
 
 We also require that $N$ be invertible (i.e., non-zero) in $\mathcal{F}.$
 
@@ -203,6 +201,10 @@ The convolution theorem says that, for any two vectors $x, y \in \mathcal{F}^N,$
 $$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
 where $\cdot$ denotes scalar (element-wise) product.
 
+Note that $\star$ is bilinear, which means that it is linear in both of its arguments:
+for any scalar $\alpha \in \mathcal{F}$ and any two vectors $x, y \in \mathcal{F}^N,$
+$$x \star (\alpha y) = (\alpha x) \star y = \alpha (x \star y).$$
+
 There are algorithms for computing both discrete Fourier transform and inverse discrete Fourier transform
 efficiently --- in $O(N \log N)$ time, provided that addition and multiplication
 in $\mathcal{F}$ take $O(1)$ time. Any such algorithm is called a fast Fourier transform (FFT).
@@ -216,9 +218,9 @@ particularly when $N$ is a power of two.
 \subsection{Complex FFT using floating point}
 
 The obvious approach to calculate a cyclic convolution over $\mathbb{Z}$ is to pick a field that
-contains $\mathbb{Z}$ and has principal roots of unity of any order --- namely, $\mathbb{C},$ the
+contains $\mathbb{Z}$ and has primitive $n$-th roots of unity for any $n$ --- namely, $\mathbb{C},$ the
 field of complex numbers.
-A principal root of unity of order $n$ can then be expressed by the formula $e^{2 \pi i / n}.$
+A primitive $n$-th root of unity can then be expressed by the formula $e^{2 \pi i / n}.$
 This is the core of the ``FFT multiplication'' algorithm usually taught in classes:
 approximate $\mathbb{C}$ with a pair of double-precision floating point values, compute the
 convolution and round the results back to integers.
@@ -241,7 +243,7 @@ i.e., depend on the platform.
 For any prime number $p,$ there exists the finite field $\mathrm{F}_p$ of integers modulo
 $p.$ The number-theoretic transform is defined as the discrete Fourier transform in
 $\mathrm{F}_p,$ for some prime $p.$
-Note that $\mathrm{F}_p$ contains a principal root of unity of order $n$ if and only if $n$ divides $(p-1).$
+Note that $\mathrm{F}_p$ contains a primitive $n$-th root of unity if and only if $n$ divides $(p-1).$
 
 We will now discuss the application of number-theoretic transform to integer multiplication.
 
@@ -255,10 +257,10 @@ Remember that the inputs to the convolution over $\mathbb{Z}$ we need to compute
 and outputs are in $[0; (B-1)^2 M],$ so doing calculations modulo $p$ would never result
 in an ambiguity.
 Note that, generally speaking, we would need to round the size of the convolution, $N,$ up to some
-divisor of $(p-1)$ in order to guarantee the existence of principal root of unity of order $N.$
+divisor of $(p-1)$ in order to guarantee the existence of primitive $N$-th root of unity.
 We thus need to choose $p$ such that $(p-1)$ is highly composite.
 
-Another approach is to pick a number of pairwise distinct primes, $p_1, \ldots, p_n,$ such that
+Another approach is to pick $n$ pairwise distinct primes, $p_1, \ldots, p_n,$ such that
 $$\prod\limits_{i=1}^{n} p_i > (B-1)^2 M.$$
 Then, for each $i,$ compute the convolution vector in $\mathrm{F}_{p_i}$ and use
 the Chinese remainder theorem to recover the actual answer.
@@ -538,7 +540,7 @@ thus, our choice may affect our strategy of searching primes.
 
 \subsubsection{The naïve approach}
 
-The naïve method of modular reduction is to use, where available, a hardware instruction
+The naïve method of modular reduction is to use, where it is available, a hardware instruction
 to divide two-words divident by single-word divisor into single-word quotient and single-word
 remainder. Where not available, we would have to emulate such an instruction in software.
 
@@ -554,7 +556,7 @@ Unfortunately, this method is very slow. % TODO
 A method intended to be faster, while not requiring a change in our representation of field
 elements, is know as Barrett reduction. % TODO cite
 
-It reduces $0 \le a < n^2$ modulo $n$ using some pre-computed value depending on $n.$
+It reduces $0 \le a < n^2$ modulo $n$ using some pre-computed value that depends on $n.$
 For a $k$-bit modulo $n,$ it internally (not counting the raw multiplication $xy = a$) performs:
 \begin{itemize}
     \item one multiplication of $(k+1)$ bits by $(2k)$ bits into a $(3k)$-bit value;
@@ -613,18 +615,19 @@ After some small number of rounds (2---3 rounds for primes used in \textbf{mpdec
 is guaranteed to be less than $2p,$ after which it can be reduced modulo $p$ with a single
 conditional subtraction, just like with the Montgomery reduction.
 
-We benchmarked the ``best case'' of reduction modulo Solinas prime against Montgomery reduction;
-we used $2^{64} - 2^{32} + 1$ as the Solinas prime modulo; note the values of $64$ and $32$ are
-better for hardware (at least, for x86-64) because division and multiplication can be done by
-simply omitting (half-)words or assuming zero lower (half-)words, correspondingly, instead of
+We benchmarked the ``best case'' of reduction modulo $2^{N_1}-2^{N_2}+1$ against Montgomery
+reduction: we used $2^{64} - 2^{32} + 1$ as the prime modulo; note the values of $64$ and
+$32$ are better for hardware (at least, for x86-64) because division and multiplication can be done
+by simply omitting (half-)words or assuming zero lower (half-)words, correspondingly, instead of
 actually shifting the bits. This prime also requires at most 2 rounds of reduction.
 
-We found that on modern system, reduction modulo Solinas prime is slower by $\approx$ 15\%;
+We found that on a modern x86-64 system, reduction with two rounds of $r$ is slower by
+$\approx$15\% compared to Montgomery reduction;
 the code can be found in the \verb!bench-solinas! subdirectory of our repository.
 
 We think the most likely explanation for this finding is that, on modern x86-64 systems, hardware
 multipliers are sufficiently performant to render special schemes for reduction modulo a
-single-word $p$ useless, if Montgomery reduction can be used instead.
+single-word $p=2^{N_1}-2^{N_2}+1$ useless, if Montgomery reduction can be used instead.
 
 \subsection{Searching for primes}
 
@@ -722,9 +725,9 @@ having $\redc$ as the multiplication operation.
 It is a field isomorphic to $\mathrm{F}_p,$ with isomorphism
 $\varphi \colon \mathrm{F}_p \to \widetilde{\mathrm{F}}_p$ being $\varphi(x) = Rx.$
 
-If we fix a principal root of unity $\xi \in \mathrm{F}_p$ of order $N,$
-then $\widetilde{\xi} = R \xi$ will be a principal root of unity of order $N$ in
-$\widetilde{\mathrm{F}}_p.$
+If we fix a primitive $N$-th root of unity $\xi \in \mathrm{F}_p,$
+then $\widetilde{\xi} = R \xi$ will be a primitive $N$-th root of unity
+in $\widetilde{\mathrm{F}}_p.$
 
 We can consider, then,
 $\widetilde{\mathfrak{f}}$ and $\widetilde{\mathfrak{f}}^{-1},$
@@ -763,18 +766,18 @@ $\widetilde{\mathfrak{f}}^{-1} \equiv \mathfrak{f}^{-1}$
 above, we can rewrite it as follows:
 $$x \, \widetilde{\star} \, y = R^{-1} \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
 where $\cdot$ denotes element-wise product.
-We can rewrite this as
+This, in part, can be rewritten as
 $$x \, \widetilde{\star} \, y = R^{-1}(x \star y).$$
 
 It means that, computing a cyclic convolution via DFT of both arguments, followed by element-wise
 multiplication, followed by IDFT, but using
-$\redc$ instead of regular multiplication during all those operation,
+$\redc$ instead of regular multiplication during all of those operations,
 gives us an extra factor of $R^{-1}.$
 
 Instead of converting both arguments into Montgomery representation
 (remember this conversion is just multiplication by $R$), performing $\widetilde{\star}$ and
 converting the result out of Montgomery representation (this is multiplication by $R^{-1}$),
-we can convert only one of the arguments; indeed,
+we can just convert one of the arguments; indeed,
 $$x \, \widetilde{\star} \, (Ry) = R^{-1}(x \star Ry) = x \star y.$$
 
 Alternatively, we can multiply the result by $R,$ not touching any of the arguments at all:
@@ -784,9 +787,134 @@ The latter approach is preferable for us: the Cooley-Tukey IDFT performs multipl
 scalar $N^{-1}$ as a separate final stage; we can ``mix in'' the factor of $R$ into this stage
 essentially for free!
 
-Another advantage is that, it might be possible that we are computing the cyclic convolution of $x$
-with itself: the arguments have not just identical values, but the same location in memory; so
-multiplying one argument by $R$ automatically multiplies another by the same factor.
+Note that multiplication by $R$ is $\redc$ with $R^2;$ so if the Montgomery representation of
+the factor $N^{-1}$ was $\psi = RN^{-1},$
+then our new factor will be
+$$\psi' = \redc(\psi, R^2) = R^2 N^{-1}.$$
+Then, $\forall x \in \mathrm{F}_p \colon \redc(x, \psi') = R N^{-1} x,$ exactly what we need.
+
+Another practical advantage of modification of the result as opposed to one of the arguments is
+that, it might be possible that we are computing the cyclic convolution of the sequence with
+\textit{itself}: the sequences have not \textit{just} identical values, but
+\textit{the same location in memory}; so multiplying one by $R$ automatically multiplies another.
+Of course, whether such a situation is allowed depends on the implementation; but we do support
+such a use case.
+
+\section{The matrix Fourier algorithms}
+
+We now describe the four-step and six-step algorithms for DFT/IDFT, which are matrix Fourier
+algorithms, meaning that they interpret sequences of length $N = N_1 N_2$ as $N_1 \times N_2$ matrices.
+
+We assume that rows, as opposed to columns, occupy contiguous ranges in underlying sequences;
+in other words, we assume row-major order:
+$$
+\langle 1, 2, 3, 4, 5, 6, 7, 8 \rangle \longleftrightarrow
+\begin{bmatrix}
+1 & 2 & 3 & 4 \\
+5 & 6 & 7 & 8
+\end{bmatrix}.
+$$
+
+\subsection{The four-step algorithm}
+
+For the purposes of this subsection:
+\begin{itemize}
+
+    \item $[N_1 \times N_2]$ means ``interpreting the sequence as a matrix with $N_1$ rows and $N_2$ columns''.
+
+    \item If a matrix has $N_1$ rows and $N_2$ columns, then its element with
+        row index $i,$ where $0 \le i < N_1,$
+        and column index $j,$ where $0 \le j < N_2,$ is said to be indexed $\langle i, j \rangle.$
+
+\end{itemize}
+
+Fix the length of transform $N.$
+Fix also $\xi_N,$ a primitive $N$-th root of unity in the underlying field.
+
+DFT of length $N = RC$ can be computed as follows:
+\begin{enumerate}
+    \item $[R \times C]$, perform (length $R$) DFT on each column with $\xi = (\xi_N)^C.$
+    \item $[R \times C]$, multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{ij}.$
+    \item $[R \times C]$, perform (length $C$) DFT on each row with $\xi = (\xi_N)^R.$
+    \item $[R \times C]$, transpose the matrix.
+\end{enumerate}
+
+IDFT of length $N = RC$ can be computed as follows:
+\begin{enumerate}
+    \item $[C \times R],$ transpose the matrix.
+    \item $[R \times C],$ perform (length $C$) IDFT on each row with $\xi = (\xi_N)^R.$
+    \item $[R \times C],$ multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{-ij}.$
+    \item $[R \times C],$ perform (length $R$) IDFT on each column with $\xi = (\xi_N)^C.$
+\end{enumerate}
+
+\subsection{The six-step algorithm}
+
+For the purposes of this subsection:
+\begin{itemize}
+
+    \item $[N_1 \times N_2]$ means ``interpreting the sequence as a matrix with $N_1$ rows and $N_2$ columns''.
+
+    \item If a matrix has $N_1$ rows and $N_2$ columns, then its element with
+        row index $i,$ where $0 \le i < N_1,$
+        and column index $j,$ where $0 \le j < N_2,$ is said to be indexed $\langle i, j \rangle.$
+
+\end{itemize}
+
+Fix the length of transform $N.$
+Fix also $\xi_N,$ a primitive $N$-th root of unity in the underlying field.
+
+DFT of length $N = RC$ can be computed as follows:
+\begin{enumerate}
+    \item $[R \times C],$ transpose the matrix.
+    \item $[C \times R],$ perform (length $R$) DFT on each row with $\xi = (\xi_N)^C.$
+    \item $[C \times R],$ transpose the matrix.
+    \item $[R \times C],$ multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{ij}.$
+    \item $[R \times C],$ perform (length $C$) DFT on each row with $\xi = (\xi_N)^R.$
+    \item $[R \times C],$ transpose the matrix.
+\end{enumerate}
+
+IDFT of length $N = RC$ can be computed as follows:
+\begin{enumerate}
+    \item $[C \times R],$ transpose the matrix.
+    \item $[R \times C],$ perform (length $C$) IDFT on each row with $\xi = (\xi_N)^R.$
+    \item $[R \times C],$ multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{-ij}.$
+    \item $[R \times C],$ transpose the matrix.
+    \item $[C \times R],$ perform (length $R$) IDFT on each row with $\xi = (\xi_N)^C.$
+    \item $[C \times R],$ transpose the matrix.
+\end{enumerate}
+
+\subsection{Discussion}
+
+If $\xi_N$ is a primitive $N$-th root of unity in a field $\mathcal{F},$
+and $N = N_1 N_2,$ then $\xi_{N_1} = (\xi_N)^{N_2}$ is a primitive $N_1$-th root of unity in
+$\mathcal{F}.$
+This means that we can indeed perform DFTs/IDFTs on rows/columns with the ``custom'' primitive
+roots specified in the descriptions of the algorithms.
+
+The four-step algorithm is just a restatement, in terms of a $N_1 \times N_2$ matrix, of the
+Cooley-Tukey algorithm that, in its general form, re-expresses a transform of length $N = N_1 N_2$
+in terms of smaller transforms of lengths $N_1$ and $N_2.$
+Thus, it can be used when it is desirable to perform a transform of length $N$ which is not a
+power of two, so that the decimation-in-time (DIT) or decimation-in-frequency (DIF) variants of the
+Cooley-Tukey algorithm can not be employed directly.
+
+The six-step algorithm has the advantage that, aside from matrix transpositions, it only accesses
+memory in strides of $R$ or $C.$ Thus, it might be faster in settings of hierarchial memory,
+including external-memory transforms and modern systems with multiple levels of cache.
+
+Remember our definition of the cyclic convolution in terms of DFT and IDFT:
+$$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
+where $\cdot$ denotes scalar (element-wise) product.
+
+Note that, for computation of $\star,$ the specific order in which the direct transform
+$\mathfrak{f}$ produces its outputs, and the order in which the inverse transform
+$\mathfrak{f}^{-1}$ expects its inputs to be in, does not matter; we only need these two orders
+to match.
+Indeed, $\cdot$ is element-wise, $(x \cdot y)[i] = x[i] y[i],$
+so, for any permutation $\pi$ we have $$\pi^{-1}(\pi(x) \cdot \pi(y)) = x \cdot y.$$
+This means that, for the purpose of computing the cyclic convolution, in both four-step and six-step
+algorithms, the final transposition step in DFT and the initial transposition step in IDFT, can be
+simultaneously omitted. Note this does not mean you can omit just one of them but not another!
 
 \bibliography{paper}{}
 \bibliographystyle{plain}

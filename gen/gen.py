@@ -13,6 +13,9 @@ class Platform:
         self.base_logs = base_logs
 
 
+BASE = 10
+
+
 PLATFORM_32 = Platform(
     bitwidth=32,
     k_min=25,
@@ -56,7 +59,7 @@ def find_primes_for_platform(platform, nprimes):
     return result
 
 
-def get_k(p):
+def extract_k_from_prime(p):
     k, _ = decompose_pow2(p - 1)
     return k
 
@@ -71,7 +74,7 @@ def print_consts_for_platform(platform, prime1, prime2):
         mont_p1 = canonical_mod(-neg_mont_p1, MONT_R)
         x = prim_root(prime)
 
-        k = get_k(prime)
+        k = extract_k_from_prime(prime)
 
         print(f'static const FFT_ULIMB FFT_ARRAY_{number}[] =')
         print('{')
@@ -114,7 +117,7 @@ def print_thresholds_for_platform(platform, prime1, prime2):
     print('// Auto-generated; do not edit.')
 
     product = prime1 * prime2
-    min_k = min(get_k(p) for p in [prime1, prime2])
+    min_k = min(extract_k_from_prime(p) for p in [prime1, prime2])
     max_transform_len = 3 << min_k
 
     print('const FFT_Threshold FFT_THRESHOLDS[] =')
@@ -127,8 +130,8 @@ def print_thresholds_for_platform(platform, prime1, prime2):
         return f'UINT64_C({n})'
 
     for base_log in sorted(platform.base_logs, reverse=True):
-        base = 10 ** base_log
-        max_n = (product - 1) // ((base - 1) ** 2)
+        radix = BASE ** base_log
+        max_n = (product - 1) // ((radix - 1) ** 2)
         max_n = min(max_n, max_transform_len // 2)
         ndigits = max_n * base_log
         print(' {NDIGITS(%s), %s},' % (make_const(ndigits), base_log))
@@ -157,10 +160,8 @@ def print_fastdiv_for_platform(platform, prime1, prime2):
         return lo, hi
 
     for base_log in platform.base_logs:
-        base = 10 ** base_log
-        c = fastdiv.fastdiv(d=base, N=platform.bitwidth * 2)
-        if not isinstance(c, fastdiv.CaseEasy):
-            raise NotImplementedError()
+        radix = BASE ** base_log
+        c = fastdiv.fastdiv(d=radix, N=platform.bitwidth * 2)
 
         print(f'''
 static void recover_answer_{base_log}(
@@ -170,14 +171,31 @@ static void recover_answer_{base_log}(
         print(' for (size_t i = 0; i < nout; ++i) {')
         print('  carry += crt2(a1[i], a2[i]);')
 
-        f0, f1 = get_lo_hi(c.factor)
-        q = issue_srl('carry', c.sh_pre)
-        q = f'big_mulh({q}, {issue_const(f0)}, {issue_const(f1)})'
-        q = issue_srl(q, c.sh_post)
+        if isinstance(c, fastdiv.CaseEasy):
+            f0, f1 = get_lo_hi(c.factor)
+            q = issue_srl('carry', c.sh_pre)
+            q = f'big_mulh({q}, {issue_const(f0)}, {issue_const(f1)})'
+            q = issue_srl(q, c.sh_post)
+            print(f'  FFT_DOUBLE_ULIMB q = {q};')
+            print(f'  out[i] = carry - q * {issue_const(radix)};')
+            print(f'  carry = q;')
 
-        print(f'  FFT_DOUBLE_ULIMB q = {q};')
-        print(f'  out[i] = carry - q * {issue_const(base)};')
-        print(f'  carry = q;')
+        elif isinstance(c, fastdiv.CaseHard):
+            f0, f1 = get_lo_hi(c.factor)
+            print(f'  FFT_DOUBLE_ULIMB t1 = big_mulh(carry, {issue_const(f0)}, {issue_const(f1)});')
+            q = 't1 + ((carry - t1) >> 1)'
+            q = issue_srl(q, c.sh)
+            print(f'  FFT_DOUBLE_ULIMB q = {q};')
+            print(f'  out[i] = carry - q * {issue_const(radix)};')
+            print(f'  carry = q;')
+
+        elif isinstance(c, fastdiv.CasePowerOfTwo):
+            mask = (1 << c.ell) - 1
+            print(f'  out[i] = carry & {issue_const(mask)};')
+            print(f'  carry >>= {c.ell};')
+
+        else:
+            raise NotImplementedError(f'not implemented for {c}')
 
         print(' }')
         print('}')

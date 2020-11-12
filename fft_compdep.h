@@ -2,9 +2,9 @@
 
 #include <stddef.h>
 
-# define FFT_UNUSED          __attribute__((unused))
-# define FFT_FORCE_INLINE    __attribute__((always_inline))
-# define FFT_UNREACHABLE()   __builtin_unreachable()
+#define FFT_UNUSED          __attribute__((unused))
+#define FFT_FORCE_INLINE    __attribute__((always_inline))
+#define FFT_UNREACHABLE()   __builtin_unreachable()
 
 static inline FFT_UNUSED FFT_FORCE_INLINE
 unsigned fft_zu_counttz(size_t x)

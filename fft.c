@@ -70,9 +70,14 @@ FFT_DOUBLE_ULIMB full_prod(FFT_ULIMB x, FFT_ULIMB y)
 static inline FFT_FORCE_INLINE
 FFT_ULIMB modp_adjust(FFT_ULIMB x, const Field *field)
 {
+#if FFT_USE_BUILTIN_UNPREDICTABLE()
+    FFT_SLIMB d = x - field->p;
+    return __builtin_unpredictable(d < 0) ? x : d;
+#else
     FFT_SLIMB d = x - field->p;
     FFT_SLIMB cf = d >> (FFT_LIMB_BITS - 1);
     return d + (field->p & cf);
+#endif
 }
 
 // Performs addition modulo field->p.
@@ -100,9 +105,15 @@ FFT_ULIMB modp_add3(FFT_ULIMB x, FFT_ULIMB y, FFT_ULIMB z, const Field *field)
 static inline FFT_FORCE_INLINE
 FFT_ULIMB modp_sub(FFT_ULIMB x, FFT_ULIMB y, const Field *field)
 {
+#if FFT_USE_BUILTIN_UNPREDICTABLE()
+    FFT_SLIMB d = x - y;
+    FFT_SLIMB s = __builtin_unpredictable(d < 0) ? field->p : 0;
+    return d + s;
+#else
     FFT_SLIMB d = x - y;
     FFT_SLIMB cf = d >> (FFT_LIMB_BITS - 1);
     return d + (field->p & cf);
+#endif
 }
 
 // Performs Montgomery reduction on (x * y).
