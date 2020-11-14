@@ -3,12 +3,11 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
-\usepackage{mathtools}
 \usepackage{amssymb}
 \usepackage{amsmath}
-\usepackage{amsthm}
 \usepackage{mathrsfs}
 \usepackage{cite}
+\usepackage[ruled]{algorithm2e}
 
 \makeatletter
 
@@ -72,6 +71,19 @@ Indeed, for smaller sizes of the multiplicands, it does makes sense to use quadr
 as $n$ gets large, however, asymptotic considerations start to outweigh.
 For multiplication, this means that different variations of the fast Fourier transform start to be used.
 
+\section{Notation}
+
+The following notation is employed throughout this document:
+$$\langle x_0, \ldots, x_{n-1} \rangle [i] = x_i.$$
+In order words, square brackets mean zero-based tuple indexing.
+
+By $\mathbb{N}$ we mean $\{0, 1, 2, \ldots\}.$
+
+A ring is a set $\mathcal{R}$ equipped with two binary operations, $+$ and $\cdot,$ such that
+$\langle \mathcal{R}, + \rangle$ is an abelian group,
+$\cdot$ is associative and there an identity element with respect to $\cdot$ in $\mathcal{R},$
+and $\cdot$ is both left distributive and right distributive with respect to $+.$
+
 \section{Overview of the discrete Fourier transform}
 
 The plan of this section is as follows:
@@ -98,11 +110,6 @@ The plan of this section is as follows:
           convolutions over $\mathbb{Z}$ to cyclic convolutions over different algebraic fields.
 \end{itemize}
 
-The following notation is employed throughout this section:
-$$\langle x_0, \ldots, x_{n-1} \rangle [i] = x_i.$$
-
-By $\mathbb{N}$ we mean $\{0, 1, 2, \ldots\}.$
-
 \subsection{Cyclic convolution}
 
 We now define the cyclic convolution.
@@ -114,7 +121,7 @@ $$(x \star y)[k] = \sum\limits_{i=0}^{n - 1} x[i] y[(k - i) \mymod n].$$
 
 Let us now fix a base $B \in \mathbb{N}, \, B > 1,$ and introduce the following notation:
 $$\myllangle x_0, \ldots, x_{n-1} \myrrangle = \sum\limits_{i=0}^{n-1} x_i B^i,$$
-where $x_i \in \mathbb{N}, \, x_i < B.$ In order words, square brackets mean zero-based tuple indexing.
+where $x_i \in \mathbb{N}, \, x_i < B.$
 
 Let us say we want to multiply
 $x = \myllangle x_0, \ldots, x_{n-1} \myrrangle$
@@ -172,9 +179,9 @@ with $k$ higher zeros and ignoring the higher $k$ elements of the resulting vect
 We fix an algebraic field $\mathcal{F}$ and the length of transform, $N \in \mathbb{N}.$
 
 We will pretend natural numbers are in $\mathcal{F}$ by adopting the following identity:
-$$n = \underbrace{\overline{1} + \overline{1} + \cdots + \overline{1}}_\text{$n$ times},$$
-where $\overline{1} \in \mathcal{F}$ is the multiplicative identity in $\mathcal{F};$ the degenerate case of this identity is $0 = \overline{0},$
-where $\overline{0} \in \mathcal{F}$ is the additive identity in $\mathcal{F}.$
+$$n = \underbrace{\widehat{1} + \widehat{1} + \cdots + \widehat{1}}_\text{$n$ times},$$
+where $\widehat{1} \in \mathcal{F}$ is the multiplicative identity in $\mathcal{F};$ the degenerate case of this identity is $0 = \widehat{0},$
+where $\widehat{0} \in \mathcal{F}$ is the additive identity in $\mathcal{F}.$
 
 We require that there exists a primitive $N$-th root of unity in $\mathcal{F}$:
 such $\xi \in \mathcal{F}$ that $\xi^N = 1$ and $\xi^k \ne 1$ for every $0 < k < N.$
@@ -210,10 +217,11 @@ efficiently --- in $O(N \log N)$ time, provided that addition and multiplication
 in $\mathcal{F}$ take $O(1)$ time. Any such algorithm is called a fast Fourier transform (FFT).
 
 Although an $O(N \log N)$ FFT algorithm exists that works for arbitrary $N,$ even prime,
-the most widely used FFT algorithm, the Cooley---Tukey algorithm,
-works by rewriting a composite $N = N_1 N_2$ into $N_1$ smaller transforms of size $N_2.$
+the most widely used FFT algorithm, the Cooley---Tukey algorithm, works by re-writing a transform
+of composite length $N = N_1 N_2$ into smaller transforms of lengths $N_1$ and $N_2.$
 Thus, it works only for the values of $N$ which are highly composite;
-particularly when $N$ is a power of two.
+particularly, if $N$ is a power of two, its variants named
+decimation in time (DIT) and decimation in frequency (DIF), can be used.
 
 \subsection{Complex FFT using floating point}
 
@@ -225,7 +233,7 @@ This is the core of the ``FFT multiplication'' algorithm usually taught in class
 approximate $\mathbb{C}$ with a pair of double-precision floating point values, compute the
 convolution and round the results back to integers.
 
-The main drawback of this algorithm is the precision issues.
+The main drawback of this algorithm is precision issues.
 Formally, it is not even a sound algorithm for multiplication: provided that the precision of
 your floating-point values is bounded, you can not multiply arbitrarily large numbers with it: at
 some point, you are going to get a round-off error large enough to produce a wrong digit in the
@@ -554,7 +562,7 @@ Unfortunately, this method is very slow. % TODO
 \subsubsection{Barrett reduction}
 
 A method intended to be faster, while not requiring a change in our representation of field
-elements, is know as Barrett reduction. % TODO cite
+elements, is known as Barrett reduction. % TODO cite
 
 It reduces $0 \le a < n^2$ modulo $n$ using some pre-computed value that depends on $n.$
 For a $k$-bit modulo $n,$ it internally (not counting the raw multiplication $xy = a$) performs:
@@ -622,7 +630,7 @@ by simply omitting (half-)words or assuming zero lower (half-)words, correspondi
 actually shifting the bits. This prime also requires at most 2 rounds of reduction.
 
 We found that on a modern x86-64 system, reduction with two rounds of $r$ is slower by
-$\approx$15\% compared to Montgomery reduction;
+$\approx$ 15\% compared to Montgomery reduction;
 the code can be found in the \verb!bench-solinas! subdirectory of our repository.
 
 We think the most likely explanation for this finding is that, on modern x86-64 systems, hardware
@@ -652,60 +660,218 @@ We have, then, the following requirements for each $p_i$:
 \end{enumerate}
 Of all possible primes with those properties, we need to pick the $\ell$ largest.
 
-This leads us to the following algorithm, presented here as Python code:
+This leads us to the following algorithm:
 
-\begin{verbatim}
-def find_for_n(n, p_max, max_nyield):
-    """
-    Yields at most 'max_nyield' largest primes of form
-      p = c * 3 * 2**n + 1,
-    such that p <= p_max and 'c' is odd.
-    """
+\begin{procedure}[H]
+\caption{FindPrimesForN($n$, $p_{\max}, \ell$)}
+\SetKw{KwAnd}{and}
+\DontPrintSemicolon
+\KwIn{$n, p_{\max}, \ell.$}
+\KwOut{Set of $\ell$ largest, or less if the total number is less than $\ell,$ primes of form $p = c \cdot 3 \cdot 2^n + 1,$ where $p \le p_{\max}$ and $c$ is odd.}
+\Begin{
+    $r \longleftarrow \varnothing$\;
+    $\psi \longleftarrow (p_{\max} - 1) \mydiv 2^n $\;
+    \If{$\psi \mymod 2 = 0$}{
+        $\psi \longleftarrow \psi - 1$\;
+    }
+    \While{$\psi \mymod 3 \ne 0$}{
+        $\psi \longleftarrow \psi - 2$\;
+    }
+    \While{$\psi > 0$ \KwAnd $|r| < \ell$}{
+        $p \longleftarrow \psi \cdot 2^n + 1$\;
+        \If{$p$ is prime}{
+            $r \longleftarrow r \cup \{p\}$\;
+        }
+        $\psi \longleftarrow \psi - 6$\;
+    }
+    \Return{$r$}\;
+}
+\end{procedure}
 
-    # Calculate the largest factor 'f' such that:
-    #   (1) f is odd;
-    #   (2) f is divisible by 3;
-    #   (3) f * 2**n + 1 <= p_max.
+\begin{procedure}[H]
+\caption{FindPrimes($w$, $n_{\min}$, $\ell$)}
+\SetKw{Error}{error}
+\DontPrintSemicolon
+\KwIn{$w, n_{\min}, \ell.$}
+\KwOut{Set of $\ell$ largest primes of form $p = c \cdot 3 \cdot 2^n + 1,$ where $p < 2^{w-1},$ $n \ge n_{\min},$ and $c$ is odd.}
+\Begin{
+    $r \longleftarrow \varnothing$\;
+    $p_{\max} \longleftarrow 2^{w-1}-1$\;
+    \For{$n \longleftarrow n_{\min}$ \KwTo $w-2$}{
+        $r \longleftarrow r \cup \mathrm{FindPrimesForN}(n, p_{\max}, \ell)$\;
+    }
+    \eIf{$|r| < \ell$}{
+        \Error{cannot find $\ell$ primes with required properties}\;
+    }{
+        \Return{$\ell$ largest values of $r$}\;
+    }
+}
+\end{procedure}
 
-    f = (p_max - 1) >> n
-    if f % 2 == 0:
-        f -= 1
-    while f % 3 != 0:
-        f -= 2
-
-    # Search for primes of form
-    #   (f - 6*i) * 2**n + 1,
-    # where i >= 0.
-
-    while f > 0 and max_nyield:
-        p = (f << n) + 1
-        if is_prime(p):
-            yield p
-            max_nyield -= 1
-        f -= 6
-
-
-def find_primes(n_min, w, ell):
-    """
-    Returns list of 'ell' largest primes of form
-      p = c * 3 * 2**n + 1,
-    where:
-      (1) n_min <= n <= (w - 3);
-      (2) p < 2**(w - 1);
-      (3) 'c' is odd.
-    """
-
-    result = []
-    p_max = (1 << (w - 1)) - 1
-    for n in range(n_min, w - 2):
-        result.extend(find_for_n(n, p_max, ell))
-    assert len(result) >= ell
-    return sorted(result)[-ell:]
-\end{verbatim}
-
-Note that it uses the external function \verb|is_prime|, which must perform primality testing.
+Note that it uses an unspecified algorithm to perform primality testing.
 We use the Miller-Rabin primality test with the first 12 prime numbers as bases; it has been proven
 in \cite{primebases} that, for values less than $2^{64},$ this is enough to guarantee correctness.
+
+\section{Cooley-Tukey optimizations}
+
+Before discussing optimizations,
+we need to define the decimation in time (DIT) and decimation in frequency (DIF) variants of the
+Cooley-Tukey FFT algorithm.
+
+Both are specializations of Cooley-Tukey for a power-of-two length, and both include the step of
+applying the bit-reversal permutation, which we introduce below, to the array being transformed,
+either at the very beginning or in the very end.
+
+Both algorithms take two parameters, an array $A$ of field elements and a field element
+$\omega = \xi^{\pm 1},$
+and return an array $A'$ of length $|A'| = |A|$
+such that $$A'[k] = \sum\limits_{i=0}^{|A| - 1} A[i] \omega^{ik}.$$
+If we express this transform as a function $\tau(A,\omega),$ then DFT and IDFT can be expressed in
+terms of $\tau$ as follows:
+\begin{eqnarray*}
+\mathfrak{f}(x) &=& \tau(x, \xi); \\
+\mathfrak{f}^{-1}(x) &=& N^{-1} \tau(x, \xi^{-1}),
+\end{eqnarray*}
+where $N$ is the length of the transform.
+
+\subsection{Bit-reversal permutation}
+
+Bit-reversal permutation is defined for sequences of length $2^n$ as follows: element with
+zero-based index $k$ is exchanged with element with zero-based index $\mathbf{rev}_n(k),$ where
+$\mathbf{rev}_n(k)$ is defined as the unique number in $[0; 2^n - 1]$ whose length-$n$ binary
+representation equals to the reversed length-$n$ binary representation of $k.$
+
+We now give the definition of the procedure that performs bit-reversal permutation.
+
+\begin{procedure}[H]
+\caption{BitRevPermute($A$)}
+\DontPrintSemicolon
+\KwIn{Array $A$, $|A| = 2^n.$}
+\KwOut{The result of applying the bit-reversal permutation to $A.$}
+\Begin{
+    $n \longleftarrow \log_2 |A|$\;
+    \For{$k \longleftarrow 0$ \KwTo $2^n - 1$}{
+        $\langle b_0, \ldots, b_{n-1} \rangle \longleftarrow$ bits of $k;$ $b_i \in \{0,1\}$ and $\sum_{i=0}^{n-1} b_i 2^i = k$\;
+        $k' \longleftarrow \sum_{i=0}^{n-1} b_{n-i-1} 2^i$\;
+        \If{$k < k'$}{
+            {exchange $A[k]$ with $A[k']$}\;
+        }
+    }
+    \Return{$A$}\;
+}
+\end{procedure}
+
+\subsection{Decimation in time}
+
+We now define the decimation in time (DIT) algorithm.
+Note that it performs bit-reversal permutation as the first step.
+$\widehat{1}$ denotes the multiplicative identity of the underlying field.
+
+\begin{procedure}[H]
+\caption{DecimationInTime($A$, $\omega$)}
+\SetKw{KwBy}{by}
+\DontPrintSemicolon
+\KwIn{
+    Array $A$ of field elements, $|A| = 2^n$.
+    Field element $\omega = \xi^{\pm 1},$ where $\xi$ is a primitive $2^n$-th root of unity.
+}
+\KwOut{
+    Array $A'$ such that $|A'| = |A|, A'[k] = \sum_{i=0}^{|A| - 1} A[i] \omega^{ik}.$
+}
+\Begin{
+    $A \longleftarrow \mathrm{BitRevPermute}(A)$\;
+    \For{$s \longleftarrow 1$ \KwTo $\log_2 |A|$}{
+        $m \longleftarrow 2^s$\;
+        $\omega_m \longleftarrow \omega^{|A| / m}$\;
+        \For{$k = 0$ \KwTo $|A|-1$ \KwBy $m$}{
+            $\varphi \longleftarrow \widehat{1}$\;
+            \For{$j = 0$ \KwTo $m/2-1$}{
+                $u \longleftarrow A[k + j]$\;
+                $v \longleftarrow \varphi \cdot A[k + j + m/2]$\;
+                $A[k + j] \longleftarrow u + v$\;
+                $A[k + j + m/2] \longleftarrow u - v$\;
+                $\varphi \longleftarrow \varphi \cdot \omega_m$\;
+            }
+        }
+    }
+    \Return{$A$}\;
+}
+\end{procedure}
+
+The four-line transform on $A[k+j]$ and $A[k+j+m/2]$ is known as ``butterfly'', or,
+more specifically, this one is the Cooley-Tukey butterfly; it maps
+$\langle x,y \rangle \mapsto \langle x', y' \rangle$ as follows:
+\begin{eqnarray*}
+x' &=& x + \varphi \cdot y; \\
+y' &=& x - \varphi \cdot y.
+\end{eqnarray*}
+
+\subsection{Decimation in frequency}
+
+We now define the decimation in frequency (DIF) algorithm.
+Note that it performs bit-reversal permutation as the last step.
+As in the previous subsection, $\widehat{1}$ denotes the multiplicative identity of the underlying field.
+
+\begin{procedure}[H]
+\caption{DecimationInFrequency($A$, $\omega$)}
+\SetKw{KwBy}{by}
+\SetKw{KwDownTo}{downto}
+\DontPrintSemicolon
+\KwIn{
+    Array $A$ of field elements, $|A| = 2^n$.
+    Field element $\omega = \xi^{\pm 1},$ where $\xi$ is a primitive $2^n$-th root of unity.
+}
+\KwOut{
+    Array $A'$ such that $|A'| = |A|, A'[k] = \sum_{i=0}^{|A| - 1} A[i] \omega^{ik}.$
+}
+\Begin{
+    \For{$s \longleftarrow \log_2 |A|$ \KwDownTo $1$}{
+        $m \longleftarrow 2^s$\;
+        $\omega_m \longleftarrow \omega^{|A| / m}$\;
+        \For{$k = 0$ \KwTo $|A|-1$ \KwBy $m$}{
+            $\varphi \longleftarrow \widehat{1}$\;
+            \For{$j = 0$ \KwTo $m/2-1$}{
+                $u \longleftarrow A[k + j]$\;
+                $v \longleftarrow A[k + j + m/2]$\;
+                $A[k + j] \longleftarrow u + v$\;
+                $A[k + j + m/2] \longleftarrow \varphi \cdot (u - v)$\;
+                $\varphi \longleftarrow \varphi \cdot \omega_m$\;
+            }
+        }
+    }
+    $A \longleftarrow \mathrm{BitRevPermute}(A)$\;
+    \Return{$A$}\;
+}
+\end{procedure}
+
+The four-line transform on $A[k+j]$ and $A[k+j+m/2]$ is known as the Gentleman-Sande butterfly; it maps
+$\langle x,y \rangle \mapsto \langle x', y' \rangle$ as follows:
+\begin{eqnarray*}
+x' &=& x + y; \\
+y' &=& \varphi \cdot (x - y).
+\end{eqnarray*}
+
+\subsection{Omitting the bit-reversal permutation}
+
+Remember we expressed the cyclic convolution in terms of DFT and IDFT as follows:
+$$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
+where $\cdot$ denotes scalar (element-wise) product.
+
+Note that, for the computation of $(\_ \star \_),$ the specific order in which the direct transform
+$\mathfrak{f}$ produces its outputs, and the order in which the inverse transform
+$\mathfrak{f}^{-1}$ expects its inputs to be in, do not matter; we only need these two orders
+to match.
+Indeed, $(\_ \cdot \_)$ is element-wise, $(x \cdot y)[i] = x[i] y[i],$
+so, for any permutation $\pi$ we have $$\pi^{-1}(\pi(x) \cdot \pi(y)) = x \cdot y.$$
+
+This means that, for the purpose of computing the cyclic convolution, we can use DIF for the direct
+transform and DIT for the inverse transform, and simultaneously omit the final permutation step in
+DIF and the initial permutation step in DIT.
+But note this does not mean just one of them can be omitted but not the other!
+
+\subsection{Pre-calculating the table of root powers}
+
+\subsection{Separate factor-1 butterfly}
 
 \section{The linearity trick}
 \label{section:trick}
@@ -891,30 +1057,41 @@ $\mathcal{F}.$
 This means that we can indeed perform DFTs/IDFTs on rows/columns with the ``custom'' primitive
 roots specified in the descriptions of the algorithms.
 
-The four-step algorithm is just a restatement, in terms of a $N_1 \times N_2$ matrix, of the
+The four-step algorithm is just a restatement, in terms of $N_1 \times N_2$ matrix, of the
 Cooley-Tukey algorithm that, in its general form, re-expresses a transform of length $N = N_1 N_2$
 in terms of smaller transforms of lengths $N_1$ and $N_2.$
-Thus, it can be used when it is desirable to perform a transform of length $N$ which is not a
-power of two, so that the decimation-in-time (DIT) or decimation-in-frequency (DIF) variants of the
+Thus, it can be used when it is desirable to perform a transform of a length that is not a
+power of two, so that the decimation in time (DIT) or decimation in frequency (DIF) variants of the
 Cooley-Tukey algorithm can not be employed directly.
 
 The six-step algorithm has the advantage that, aside from matrix transpositions, it only accesses
-memory in strides of $R$ or $C.$ Thus, it might be faster in settings of hierarchial memory,
+memory in strides of $R$ or $C.$ Thus, it might be faster in settings of hierarchical memory,
 including external-memory transforms and modern systems with multiple levels of cache.
 
-Remember our definition of the cyclic convolution in terms of DFT and IDFT:
-$$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
-where $\cdot$ denotes scalar (element-wise) product.
+\subsection{Omitting matrix transpositions}
 
-Note that, for computation of $\star,$ the specific order in which the direct transform
-$\mathfrak{f}$ produces its outputs, and the order in which the inverse transform
-$\mathfrak{f}^{-1}$ expects its inputs to be in, does not matter; we only need these two orders
-to match.
-Indeed, $\cdot$ is element-wise, $(x \cdot y)[i] = x[i] y[i],$
-so, for any permutation $\pi$ we have $$\pi^{-1}(\pi(x) \cdot \pi(y)) = x \cdot y.$$
-This means that, for the purpose of computing the cyclic convolution, in both four-step and six-step
-algorithms, the final transposition step in DFT and the initial transposition step in IDFT, can be
-simultaneously omitted. Note this does not mean you can omit just one of them but not another!
+\subsection{Algorithm for matrix transposition}
+
+\subsection{Optimizing the four-step algorithm for $N=3 \cdot 2^k$}
+
+\subsection{Optimizing the six-step algorithm for $N=2^k$}
+
+\section{Low-level details}
+
+\subsection{Modular addition and subtraction}
+
+\subsection{Answer recovery}
+
+\subsection{Power table}
+
+\subsection{Shenanigans with Montgomery reduction}
+
+Remember the algorithm for computing $\redc^\ast(t) = R^{-1} t$
+in $\mathrm{F}_p,$
+assumes $$0 \le t < p \mu,$$ where $\mu = 2^w$ if the machine word is $w$ bits long.
+We can then compute $\redc(x,y),$ where $0 \le x,y < p$, as $\redc^\ast(xy).$
+
+Remember also that we require $p < \mu/2.$
 
 \bibliography{paper}{}
 \bibliographystyle{plain}
