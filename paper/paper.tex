@@ -572,6 +572,7 @@ For a $k$-bit modulo $n,$ it internally (not counting the raw multiplication $xy
 \end{itemize}
 
 \subsubsection{Montgomery reduction}
+\label{section:montgomery_intro}
 
 A method even faster for our purposes, is Montgomery reduction.
 
@@ -593,8 +594,44 @@ $\redc(Rx, Ry).$ Also, any $x \in \mathrm{F}_p$ can be converted into Montgomery
 representation by invoking $\redc(x, R^2) = Rx;$ and out of Montgomery
 representation by invoking $\redc(x, 1) = R^{-1}x.$
 
-It is possible to compute $\redc$ efficiently; the algorithm internally
-(not counting the raw $xy$ multiplication)
+It is possible to compute $\redc$ efficiently. We now give the definition of
+the procedure $\mathrm{MontgomeryReduce}(a).$
+If we represent field elements as values in $[0; p-1],$ then
+$\redc(x,y)$ can be computed as $\mathrm{MontgomeryReduce}(xy).$
+
+\begin{procedure}[H]
+\DontPrintSemicolon
+\caption{MontgomeryReduce($a$)}
+\KwData{
+    Integer $\mu.$\;
+    Integer $p$ coprime with $\mu.$\;
+    Integer $p' \in [0; \mu-1]$ such that $p \cdot p' \equiv -1 \, (\mymod \mu).$
+}
+\KwIn{
+    Integer $a \in [0; \mu p - 1].$
+}
+\KwOut{
+    Integer $b \in [0; p-1]$ such that $b \equiv a \mu^{-1} \, (\mymod p).$
+}
+\Begin{
+    $m \longleftarrow ((a \mymod \mu) \cdot p') \mymod \mu$\;
+    $r \longleftarrow (a + m \cdot p) \mydiv \mu$
+        \tcc*[r]{this division is exact} % apparently no need to use \; after \tcc
+    \eIf{$r \ge p$}{
+        \Return{$r - p$}\;
+    }{
+        \Return{$r$}\;
+    }
+}
+\end{procedure}
+
+The value of $p'$ can be pre-calculated with extended Euclidean algorithm for GCD;
+we have $\gcd(p, \mu) = 1,$ so $\exists A, B \in \mathbb{Z} \colon A p + B \mu = 1.$
+This means $A p \equiv 1 \, (\mymod \mu)$ and $-Ap \equiv -1 \, (\mymod \mu),$ so
+$$p' = (-Ap) \mymod \mu.$$
+
+The procedure $\mathrm{MontgomeryReduce(a)}$ internally
+(not counting the raw multiplication $xy = a$)
 performs:
 \begin{itemize}
     \item one multiplications of $w$ bits by $w$ bits into $(2w)$ bits;
@@ -852,6 +889,7 @@ y' &=& \varphi \cdot (x - y).
 \end{eqnarray*}
 
 \subsection{Omitting the bit-reversal permutation}
+\label{section:omitting1}
 
 Remember we expressed the cyclic convolution in terms of DFT and IDFT as follows:
 $$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
@@ -871,7 +909,48 @@ But note this does not mean just one of them can be omitted but not the other!
 
 \subsection{Pre-calculating the table of root powers}
 
+Define $N = \log_2 |A|.$
+
+Note that, in both DIT and DIF, we perform the same computation over and over again when doing
+$$\varphi \longleftarrow \varphi \cdot \omega_m,$$
+where $\omega_m = \omega^{2^{N - s}}, s = \log_2 m.$
+
+One way to improve that is to pre-calculate powers of $\omega$ into a table $t,$ so that
+$t[i] = \omega^i, 0 \le i < |A|/2.$
+Then, given $j$ and $m=2^s,$ we can express the factor $\varphi$ as $t[j \cdot 2^{N - s}].$
+Note that the multiplication by a power of two can be replaced with a bit shift.
+
+Another way is to pre-calculate a separate table for each ``granularity'' of root powers:
+define $$T_s[i] = t[i \cdot 2^{N-s}] = (\omega^{2^{N-s}})^i, 0 \le i < 2^{s-1}$$
+for each $s, 1 \le s \le N.$ Note $T_N = t$ and $\sum\limits_{s=1}^{N} |T_s| = \sum\limits_{s=1}^{N} 2^{s-1} = 2^N-1.$
+Now, given $j$ and $m=2^s,$ we can express $\varphi$ as $T_s[j].$
+
+Let us write $T_s$ for all $s$ into a single array $T_\ast$
+of length $2^N-1 = |A|-1$ so that
+$$T_s[i] = T_\ast[(2^0 + 2^1 + \cdots + 2^{s-2}) + i] = T_\ast[2^{s-1} - 1 + i].$$
+Then, given $j$ and $m=2^s,$ the factor $\varphi$ can be expressed as
+$T_\ast[\Delta_s + j],$ where $\Delta_s = 2^{s-1}-1 = m/2 - 1.$
+
+At first sight, there is not much difference between indexing
+$T_\ast[C_1 + j]$ and $t[j \cdot 2^{C_2}]$
+in the innermost loop,
+where $C_1$ and $C_2$ denote loop-invariant expressions that can be calculated once before the loop.
+But on x86 and x86-64, there is difference:
+these platforms can encode SIB (scale-index-base) directly in the instruction that dereferences the
+pointer, but only for constant scales of 1, 2, 4 and 8 bytes.
+This means that, if our field element is 8, 16, 32 or 64 bits long, we can dereference $p[j],$
+where $p$ points to $T_\ast[C_1],$ in one instruction; but dereferencing
+$t[j \cdot 2^{C_2}],$ where $C_2$ can be anything, requires two instructions: first for the bit
+shift and the second for dereferencing.
+
 \subsection{Separate factor-1 butterfly}
+
+Note that, in both DIT and DIF, the factor $\varphi$ for the step $j=0$ is $\widehat{1},$
+the multiplicative identity of the field.
+In this case, both butterflies degenerate into
+$\langle x, y \rangle \mapsto \langle x+y, x-y \rangle.$
+
+We can peel the first iteration off the loop to avoid redundant multiplication by $\widehat{1}.$
 
 \section{The linearity trick}
 \label{section:trick}
@@ -1070,6 +1149,28 @@ including external-memory transforms and modern systems with multiple levels of 
 
 \subsection{Omitting matrix transpositions}
 
+Remember in section~\ref{section:omitting1} we established that, with
+$x \cdot y$ denoting scalar (element-wise) product between $x,y \in \mathcal{F}^N,$
+for any permutation $\pi$ we have $$\pi^{-1}(\pi(x) \cdot \pi(y)) = x \cdot y.$$
+
+We then used this property to get rid of bit-reversal permutations in DIT and DIF.
+It turns out that, for both four-step and six-step algorithms,
+the same property can be employed to get rid of the
+final transposition step in DFT and the initial transposition step in IDFT simultaneously.
+
+For the four-step algorithm, this means no bit-reversal permutation or matrix transposition is ever
+needed: we can also simultaneously omit the bit-reversal permutation steps in DIF and DIT
+if we use DIF for the direct transforms in definition of four-step DFT, and DIT for inverse
+transforms in the definition of four-step IDFT.
+
+For the six-step algorithm, unfortunately, things are not so simple.
+We can simultaneously omit the final transposition step (step 6) in the direct transform
+and the initial transposition step (step 1) in the inverse transform; and can use DIF without
+bit-reversal permutations for step 5 of the direct transform and DIT without bit-reversal
+permutations for step 2 of the inverse transform; but we still have two matrix transposition steps
+per transform, and no matter whether we use DIT or DIF for step 2 of the direct transform
+and step 5 of the inverse transform, we need to perform bit-reversal permutation.
+
 \subsection{Algorithm for matrix transposition}
 
 \subsection{Optimizing the four-step algorithm for $N=3 \cdot 2^k$}
@@ -1086,12 +1187,7 @@ including external-memory transforms and modern systems with multiple levels of 
 
 \subsection{Shenanigans with Montgomery reduction}
 
-Remember the algorithm for computing $\redc^\ast(t) = R^{-1} t$
-in $\mathrm{F}_p,$
-assumes $$0 \le t < p \mu,$$ where $\mu = 2^w$ if the machine word is $w$ bits long.
-We can then compute $\redc(x,y),$ where $0 \le x,y < p$, as $\redc^\ast(xy).$
-
-Remember also that we require $p < \mu/2.$
+Remember the procedure $\mathrm{MontgomeryReduce}(a)$ that we defined in section~\ref{section:montgomery_intro}.
 
 \bibliography{paper}{}
 \bibliographystyle{plain}
