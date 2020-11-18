@@ -115,7 +115,9 @@ The plan of this section is as follows:
 We now define the cyclic convolution.
 Consider an aribtrary algebraic ring $\mathcal{R}.$
 The cyclic convolution $x \star y, \, (\_ \star \_) \colon \mathcal{R}^n \times \mathcal{R}^n \to \mathcal{R}^n$ is defined as follows:
-$$(x \star y)[k] = \sum\limits_{i=0}^{n - 1} x[i] y[(k - i) \mymod n].$$
+\begin{equation} \label{eq:star}
+(x \star y)[k] = \sum\limits_{i=0}^{n - 1} x[i] y[(k - i) \mymod n].
+\end{equation}
 
 \subsection{Multiplication via cyclic convolution over $\mathbb{Z}$}
 
@@ -137,20 +139,26 @@ $$\langle c_0, \ldots, c_{n+m-1} \rangle =
 \star
 \langle y_0, \ldots, y_{m-1}, \underbrace{0, \ldots, 0}_{\text{$n$ zeros}} \rangle.$$
 
-Note that $c_i \le (B-1)^2 \min\{n, m\}$ as $x_i < B, \, y_i < B,$
-and, because of our zero padding, the summation in the definition of the cyclic convolution
-can have at most $\min\{n,m\}$ non-zero summands.
+Note that
+\begin{equation} \label{eq:ci_bound}
+c_i \le (B-1)^2 \min\{n, m\}
+\end{equation}
+as both $x_i$ and $y_i$ are less that $B$ and, because of our zero padding, the summation
+in~\eqref{eq:star} can have at most $\min\{n,m\}$ non-zero summands.
 
 The representation of $z$ in base $B$ can then be recovered by the following iterative process:
-\begin{eqnarray*}
-\sigma_0 &=& 0; \\
-z_i &=& (\sigma_i + c_i) \mymod B; \\
-\sigma_{i+1} &=& (\sigma_i + c_i) \mydiv B.
-\end{eqnarray*}
+\begin{subequations} \label{eq:sigmai_and_zi}
+\begin{align}
+\sigma_0 &= 0; \\
+z_i &= (\sigma_i + c_i) \mymod B; \\
+\sigma_{i+1} &= (\sigma_i + c_i) \mydiv B.
+\end{align}
+\end{subequations}
 
 It would be useful to obtain some upper bound on the value of $\sigma_i.$
 
-Define $L = (B-1)^2 \min\{n,m\}$ and remember $c_i \le L.$
+Define $L = (B-1)^2 \min\{n,m\}$ and remember that in~\eqref{eq:ci_bound}, we established that
+$c_i \le L.$
 Define also the following sequence:
 $$a_0 = 0, \, a_{i+1} = (a_i + L) \mydiv B.$$
 
@@ -166,7 +174,9 @@ $$a^\prime_i =
 L \sum\limits_{j=1}^{i} \frac{1}{B^j}.$$
 
 We have
-$$\sigma_i \le a_i \le a^\prime_i < \lim\limits_{i \to \infty} a'_i = \frac{L}{B - 1} = (B-1)\min\{n, m\}.$$
+\begin{equation} \label{eq:sigmai_bound}
+\sigma_i \le a_i \le a^\prime_i < \lim\limits_{i \to \infty} a'_i = \frac{L}{B - 1} = (B-1)\min\{n, m\}.
+\end{equation}
 
 We have thus reduced multiplication of $n$-digit $x$ and $m$-digit $y$ to a convolution of size
 $n+m.$ But note that, for any $k \in \mathbb{N},$
@@ -190,27 +200,39 @@ We fix one such $\xi.$
 We also require that $N$ be invertible (i.e., non-zero) in $\mathcal{F}.$
 
 Discrete Fourier transform $\mathfrak{f} \colon \mathcal{F}^N \to \mathcal{F}^N$ is then defined as follows:
-$$\mathfrak{f}(x)[k] = \sum\limits_{i=0}^{N-1} x[i] \xi^{ik}.$$
+\begin{equation} \label{eq:dft}
+\mathfrak{f}(x)[k] = \sum\limits_{i=0}^{N-1} x[i] \xi^{ik}.
+\end{equation}
 
 Inverse discrete Fourier transform $\mathfrak{f}^{-1} \colon \mathcal{F}^N \to \mathcal{F}^N$ is defined similarly,
 up to the negated exponent of $\xi$ and multiplication by $N^{-1}$:
-$$\mathfrak{f}^{-1}(x)[k] = N^{-1} \sum\limits_{i=0}^{N-1} x[i] \xi^{-ik}.$$
+\begin{equation} \label{eq:idft}
+\mathfrak{f}^{-1}(x)[k] = N^{-1} \sum\limits_{i=0}^{N-1} x[i] \xi^{-ik}.
+\end{equation}
 
 It is easy to see that both $\mathfrak{f}$ and $\mathfrak{f}^{-1}$ are linear, which means that for any
 $\alpha \in \mathcal{F}$ and $x \in \mathcal{F}^N,$
-$\mathfrak{f}(\alpha x) = \alpha \mathfrak{f}(x)$
-and
-$\mathfrak{f}^{-1}(\alpha x) = \alpha \mathfrak{f}^{-1}(x).$ Here, the product of a scalar and a vector
+\begin{subequations} \label{eq:transform_linearity}
+\begin{align}
+\mathfrak{f}(\alpha x) &= \alpha \mathfrak{f}(x); \\
+\mathfrak{f}^{-1}(\alpha x) &= \alpha \mathfrak{f}^{-1}(x).
+\end{align}
+\end{subequations}
+Above, the product of a scalar and a vector
 $\alpha v = \alpha \langle v_0, \ldots, v_{n-1} \rangle$ denotes, as usual,
 $\langle \alpha v_0, \ldots, \alpha v_{n-1} \rangle.$
 
 The convolution theorem says that, for any two vectors $x, y \in \mathcal{F}^N,$
-$$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
+\begin{equation} \label{eq:conv_theorem}
+x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),
+\end{equation}
 where $\cdot$ denotes scalar (element-wise) product.
 
 Note that $\star$ is bilinear, which means that it is linear in both of its arguments:
 for any scalar $\alpha \in \mathcal{F}$ and any two vectors $x, y \in \mathcal{F}^N,$
-$$x \star (\alpha y) = (\alpha x) \star y = \alpha (x \star y).$$
+\begin{equation} \label{eq:star_linearity}
+x \star (\alpha y) = (\alpha x) \star y = \alpha (x \star y).
+\end{equation}
 
 There are algorithms for computing both discrete Fourier transform and inverse discrete Fourier transform
 efficiently --- in $O(N \log N)$ time, provided that addition and multiplication
@@ -269,7 +291,9 @@ divisor of $(p-1)$ in order to guarantee the existence of primitive $N$-th root 
 We thus need to choose $p$ such that $(p-1)$ is highly composite.
 
 Another approach is to pick $n$ pairwise distinct primes, $p_1, \ldots, p_n,$ such that
-$$\prod\limits_{i=1}^{n} p_i > (B-1)^2 M.$$
+\begin{equation} \label{eq:product_inequality}
+\prod\limits_{i=1}^{n} p_i > (B-1)^2 M.
+\end{equation}
 Then, for each $i,$ compute the convolution vector in $\mathrm{F}_{p_i}$ and use
 the Chinese remainder theorem to recover the actual answer.
 In this case, we would need to round the size of the convolution, $N,$ up to some divisor of
@@ -360,12 +384,17 @@ single-word primes.
 \subsection{Choosing the number of primes}
 
 Let us now choose the number of primes, $\ell.$
-Remember $\mu = 2^w,$ where $w$ is the length of the machine word in bits.
-Remember also that we want to pick $p_1, \ldots, p_\ell$ such that
+Remember we defined $\mu = 2^w,$ where $w$ is the length of the machine word in bits.
+Remember also that by~\eqref{eq:product_inequality},
+we want to pick $p_1, \ldots, p_\ell$ such that
 $$\prod\limits_{i=1}^{\ell} p_i > (B-1)^2 M,$$
 where $M$ is the maximum length of a multiplicand possible.
 
-We will require $p_i < \mu/2$ for simpler implementation of addition modulo $p_i.$
+We will require
+\begin{equation} \label{eq:pi_bound}
+p_i < \mu/2
+\end{equation}
+for simpler implementation of addition modulo $p_i.$
 If this does not hold, then, during addition of two numbers modulo $p_i,$ the raw sum may overflow
 the machine word, and the implementation would need to check for two conditions instead of just
 one: we would need to subtract $p_i$ (modulo $\mu$) from the result if either the overflow happened
@@ -373,7 +402,9 @@ or the result is greater or equal to $p_i.$
 
 Having fixed $\mu = 2^w$ and $M,$ and assuming all $p_1, \ldots, p_\ell$ will be
 approximately equal to $\mu/2,$ we can define the following function:
-$$\lambda(\ell) = \max\{n \in \mathbb{N} : ({10}^n - 1)^2 < (\mu / 2)^\ell / M\}.$$
+\begin{equation} \label{eq:lambda}
+\lambda(\ell) = \max\{n \in \mathbb{N} : ({10}^n - 1)^2 < (\mu / 2)^\ell / M\}.
+\end{equation}
 Then, once we choose $\ell,$ we calculate $\lambda(\ell)$ and, assuming it is positive, we can put
 $B = {10}^{\lambda(\ell)}.$ If $\lambda(\ell) = 0,$ the chosen value of $\ell$ is too small; more
 prime moduli are needed.
@@ -525,7 +556,7 @@ $19/3=6.3333$ on 64-bit systems and $9/3=3$ on 32-bit systems.
 
 \subsection{Choosing the base}
 
-The definition of $\lambda(\ell)$ in the previous subsection gives us a way to calculate
+Definition~\eqref{eq:lambda} gives us a way to calculate
 $B = 10^{\lambda(\ell)}$ given the values of $\mu,$ $M,$ and $\ell.$
 In practice, it is better to support multiple bases, each for its own range of transform lengths.
 This eliminates the need for picking the single maximum transform length $M$ and slowing down
@@ -577,7 +608,11 @@ For a $k$-bit modulo $n,$ it internally (not counting the raw multiplication $xy
 A method even faster for our purposes, is Montgomery reduction.
 
 Remember we defined $w$ as the bit width of the machine word;
-define then $R = 2^w \in \mathrm{F}_p.$ We assume $p > 2,$ so $R$ is non-zero in $\mathrm{F}_p.$
+define then
+\begin{equation} \label{eq:mont_r}
+R = 2^w \in \mathrm{F}_p.
+\end{equation}
+We assume $p > 2,$ so $R$ is non-zero in $\mathrm{F}_p.$
 
 Then, the \textit{Montgomery representation} of $x \in \mathrm{F}_p$ is simply $Rx.$
 
@@ -588,7 +623,9 @@ it means that Montgomery representations can be added and subtracted as ordinary
 The \textit{Montgomery reduction} is a function
 $\redc \colon \mathrm{F}_p \times \mathrm{F}_p \to \mathrm{F}_p$
 defined as follows:
-$$\redc(x, y) = R^{-1} x y.$$
+\begin{equation} \label{eq:mont_redc}
+\redc(x, y) = R^{-1} x y.
+\end{equation}
 It is important because the Montgomery representation $R(x y)$ of the product $x y$ is
 $\redc(Rx, Ry).$ Also, any $x \in \mathrm{F}_p$ can be converted into Montgomery
 representation by invoking $\redc(x, R^2) = Rx;$ and out of Montgomery
@@ -605,13 +642,13 @@ $\redc(x,y)$ can be computed as $\mathrm{MontgomeryReduce}(xy).$
 \KwData{
     Integer $\mu.$\;
     Integer $p$ coprime with $\mu.$\;
-    Integer $p' \in [0; \mu-1]$ such that $p \cdot p' \equiv -1 \, (\mymod \mu).$
+    Integer $p' \in [0; \mu-1]$ such that $p \cdot p' \equiv -1 \, (\mymod \, \mu).$
 }
 \KwIn{
     Integer $a \in [0; \mu p - 1].$
 }
 \KwOut{
-    Integer $b \in [0; p-1]$ such that $b \equiv a \mu^{-1} \, (\mymod p).$
+    Integer $b \in [0; p-1]$ such that $b \equiv a \mu^{-1} \, (\mymod \, p).$
 }
 \Begin{
     $m \longleftarrow ((a \mymod \mu) \cdot p') \mymod \mu$\;
@@ -625,10 +662,11 @@ $\redc(x,y)$ can be computed as $\mathrm{MontgomeryReduce}(xy).$
 }
 \end{procedure}
 
-The value of $p'$ can be pre-calculated with extended Euclidean algorithm for GCD;
-we have $\gcd(p, \mu) = 1,$ so $\exists A, B \in \mathbb{Z} \colon A p + B \mu = 1.$
-This means $A p \equiv 1 \, (\mymod \mu)$ and $-Ap \equiv -1 \, (\mymod \mu),$ so
-$$p' = (-Ap) \mymod \mu.$$
+For the pre-calculated data, put $\mu = 2^w,$ $p > 2$ is our prime number, and
+the value of $p'$ can be calculated with the extended Euclidean algorithm for GCD;
+we have $\gcd(p, \mu) = 1,$ so $\exists c_1, c_2 \in \mathbb{Z} \colon c_1 p + c_2 \mu = 1.$
+This means $c_1 p \equiv 1 \, (\mymod \, \mu)$ and $-c_1 p \equiv -1 \, (\mymod \, \mu),$ so
+$$p' = (-c_1 p) \mymod \mu.$$
 
 The procedure $\mathrm{MontgomeryReduce(a)}$ internally
 (not counting the raw multiplication $xy = a$)
@@ -677,19 +715,19 @@ single-word $p=2^{N_1}-2^{N_2}+1$ useless, if Montgomery reduction can be used i
 \subsection{Searching for primes}
 
 Having chosen the Montgomery reduction, we are going search for primes of form
-$$c \cdot 3 \cdot 2^n + 1.$$
+\begin{equation} \label{eq:pformula}
+c \cdot 3 \cdot 2^n + 1.
+\end{equation}
 
 The factor of $2^n$ here ensures that we will be able to perform transforms of length $2^m$ for any $m \le n;$
 and the factor of $3$ is here to ``smooth the stairs'', allowing us to perform transforms of length
 $3 \cdot 2^m$ for any $m \le n.$ Note that $3 \cdot 2^m = 1.5 \cdot 2^{m+1}$ is exactly the average
 of $2^{m+1}$ and $2^{m+2}.$
 
-Observe that, in order to guarantee the uniqueness of representation of a prime as
-$c \cdot 3 \cdot 2^n + 1,$
+Observe that, in order to guarantee the uniqueness of representation of a prime as~\eqref{eq:pformula},
 we need to require $c$ to be odd --- otherwise a power of two can be factored out into $2^n.$
 
-Define $n_{\mathrm{min}} = \lceil \log_2(M/3) \rceil,$ the lower bound for $n$ in the formula for
-the desired form of our primes above.
+Define $n_{\mathrm{min}} = \lceil \log_2(M/3) \rceil,$ the lower bound for $n$ in~\eqref{eq:pformula}.
 We have, then, the following requirements for each $p_i$:
 \begin{enumerate}
     \item $p_i$ is of form $c \cdot 3 \cdot 2^n + 1,$ where $c$ is odd and $n \ge n_{\mathrm{min}};$
@@ -763,13 +801,14 @@ Both algorithms take two parameters, an array $A$ of field elements and a field 
 $\omega = \xi^{\pm 1},$
 and return an array $A'$ of length $|A'| = |A|$
 such that $$A'[k] = \sum\limits_{i=0}^{|A| - 1} A[i] \omega^{ik}.$$
-If we express this transform as a function $\tau(A,\omega),$ then DFT and IDFT can be expressed in
-terms of $\tau$ as follows:
-\begin{eqnarray*}
-\mathfrak{f}(x) &=& \tau(x, \xi); \\
-\mathfrak{f}^{-1}(x) &=& N^{-1} \tau(x, \xi^{-1}),
-\end{eqnarray*}
-where $N$ is the length of the transform.
+If we express this transform as a function $\tau(A,\omega),$ then DFT and IDFT of length $N$ can be
+expressed in terms of $\tau$ as follows:
+\begin{subequations}
+\begin{align}
+\mathfrak{f}(x) &= \tau(x, \xi); \\
+\mathfrak{f}^{-1}(x) &= N^{-1} \tau(x, \xi^{-1}).
+\end{align}
+\end{subequations}
 
 \subsection{Bit-reversal permutation}
 
@@ -838,10 +877,12 @@ $\widehat{1}$ denotes the multiplicative identity of the underlying field.
 The four-line transform on $A[k+j]$ and $A[k+j+m/2]$ is known as ``butterfly'', or,
 more specifically, this one is the Cooley-Tukey butterfly; it maps
 $\langle x,y \rangle \mapsto \langle x', y' \rangle$ as follows:
-\begin{eqnarray*}
-x' &=& x + \varphi \cdot y; \\
-y' &=& x - \varphi \cdot y.
-\end{eqnarray*}
+\begin{subequations}
+\begin{align}
+x' &= x + \varphi \cdot y; \\
+y' &= x - \varphi \cdot y.
+\end{align}
+\end{subequations}
 
 \subsection{Decimation in frequency}
 
@@ -883,24 +924,25 @@ As in the previous subsection, $\widehat{1}$ denotes the multiplicative identity
 
 The four-line transform on $A[k+j]$ and $A[k+j+m/2]$ is known as the Gentleman-Sande butterfly; it maps
 $\langle x,y \rangle \mapsto \langle x', y' \rangle$ as follows:
-\begin{eqnarray*}
-x' &=& x + y; \\
-y' &=& \varphi \cdot (x - y).
-\end{eqnarray*}
+\begin{subequations}
+\begin{align}
+x' &= x + y; \\
+y' &= \varphi \cdot (x - y).
+\end{align}
+\end{subequations}
 
 \subsection{Omitting the bit-reversal permutation}
 \label{section:omitting1}
 
-Remember we expressed the cyclic convolution in terms of DFT and IDFT as follows:
-$$x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
-where $\cdot$ denotes scalar (element-wise) product.
-
-Note that, for the computation of $(\_ \star \_),$ the specific order in which the direct transform
-$\mathfrak{f}$ produces its outputs, and the order in which the inverse transform
-$\mathfrak{f}^{-1}$ expects its inputs to be in, do not matter; we only need these two orders
-to match.
+Note that in~\eqref{eq:conv_theorem}, for the computation of $(\_ \star \_),$ the specific order in
+which the direct transform $\mathfrak{f}$ produces its outputs, and the order in which the inverse
+transform $\mathfrak{f}^{-1}$ expects its inputs to be in, do not matter; we only need these two
+orders to match.
 Indeed, $(\_ \cdot \_)$ is element-wise, $(x \cdot y)[i] = x[i] y[i],$
-so, for any permutation $\pi$ we have $$\pi^{-1}(\pi(x) \cdot \pi(y)) = x \cdot y.$$
+so, for any permutation $\pi$ we have
+\begin{equation} \label{eq:cdot_permutation_invariance}
+\pi^{-1}(\pi(x) \cdot \pi(y)) = x \cdot y.
+\end{equation}
 
 This means that, for the purpose of computing the cyclic convolution, we can use DIF for the direct
 transform and DIT for the inverse transform, and simultaneously omit the final permutation step in
@@ -929,7 +971,7 @@ Let us write $T_s$ for all $s$ into a single array $T_\ast$
 of length $2^N-1 = |A|-1$ so that
 $$T_s[i] = T_\ast[(2^0 + 2^1 + \cdots + 2^{s-2}) + i] = T_\ast[2^{s-1} - 1 + i].$$
 Then, given $j$ and $m=2^s,$ the factor $\varphi$ can be expressed as
-$T_\ast[\Delta_s + j],$ where $\Delta_s = 2^{s-1}-1 = m/2 - 1.$
+$T_\ast[\delta + j],$ where $\delta = 2^{s-1}-1 = m/2 - 1.$
 
 At first sight, there is not much difference between indexing
 $T_\ast[C_1 + j]$ and $t[j \cdot 2^{C_2}]$
@@ -955,15 +997,8 @@ We can peel the first iteration off the loop to avoid redundant multiplication b
 \section{The linearity trick}
 \label{section:trick}
 
-We are now returning to the Montgomery reduction.
-
-Remember we defined $R = 2^w \in \mathrm{F}_p,$ where $w$ is the length of machine word in bits;
-we assume $p > 2,$ so $R$ is non-zero in $\mathrm{F}_p.$
-
-Remember also we defined the function
-$\redc \colon \mathrm{F}_p \times \mathrm{F}_p \to \mathrm{F}_p$
-in the following way:
-$$\redc(x, y) = R^{-1} x y.$$
+We are now returning to the Montgomery reduction; we defined $R$ and $\redc$
+in~\ref{section:montgomery_intro}; for the purposes of this section, $p > 2$ is arbitrary prime.
 
 Consider the field $\widetilde{\mathrm{F}}_p,$ which is the same as $\mathrm{F}_p,$ but
 having $\redc$ as the multiplication operation.
@@ -978,37 +1013,47 @@ We can consider, then,
 $\widetilde{\mathfrak{f}}$ and $\widetilde{\mathfrak{f}}^{-1},$
 the DFT and IDFT, correspondingly, for the field $\widetilde{\mathrm{F}}_p.$
 We have the following identities, by the isomorphism, for any $x \in \mathrm{F}_p^N$:
-\begin{eqnarray*}
-    \mathfrak{f}(x)         &=& R^{-1} \, \widetilde{\mathfrak{f}}(R \, x); \\
-    \mathfrak{f}^{-1}(x)    &=& R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(R \, x).
-\end{eqnarray*}
+\begin{subequations}
+\begin{align}
+    \mathfrak{f}(x)         &= R^{-1} \, \widetilde{\mathfrak{f}}(R \, x); \\
+    \mathfrak{f}^{-1}(x)    &= R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(R \, x).
+\end{align}
+\end{subequations}
 
 Rewrite with $x = R^{-1}y$:
-\begin{eqnarray*}
-    \mathfrak{f}(R^{-1}y)       &=& R^{-1} \, \widetilde{\mathfrak{f}}(y); \\
-    \mathfrak{f}^{-1}(R^{-1}y)  &=& R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(y).
-\end{eqnarray*}
+\begin{subequations}
+\begin{align}
+    \mathfrak{f}(R^{-1}y)       &= R^{-1} \, \widetilde{\mathfrak{f}}(y); \\
+    \mathfrak{f}^{-1}(R^{-1}y)  &= R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(y).
+\end{align}
+\end{subequations}
 
-Rewrite the left-hand sides by the linearity of $\mathfrak{f}$ and $\mathfrak{f}^{-1}$:
-\begin{eqnarray*}
-    R^{-1} \mathfrak{f}(y)       &=& R^{-1} \, \widetilde{\mathfrak{f}}(y); \\
-    R^{-1} \mathfrak{f}^{-1}(y)  &=& R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(y).
-\end{eqnarray*}
+Rewrite the left-hand sides by the linearity of $\mathfrak{f}$ and $\mathfrak{f}^{-1}$
+(see~\eqref{eq:transform_linearity}):
+\begin{subequations}
+\begin{align}
+    R^{-1} \mathfrak{f}(y)       &= R^{-1} \, \widetilde{\mathfrak{f}}(y); \\
+    R^{-1} \mathfrak{f}^{-1}(y)  &= R^{-1} \, \widetilde{\mathfrak{f}}^{-1}(y).
+\end{align}
+\end{subequations}
 
-Dividing both sides by $R^{-1},$ we see that $\mathfrak{f}(y)$ and $\widetilde{\mathfrak{f}}(y)$
-coincide for any $y = Rx;$ and so do $\mathfrak{f}^{-1}(y)$ and $\widetilde{\mathfrak{f}}^{-1}(y).$
+Dividing both sides by $R^{-1},$ we see that the transforms in $\mathrm{F}_p$ and
+$\widetilde{\mathrm{F}}_p$ completely coincide: for any
+$y \in \mathrm{F}_p^N,$
+\begin{subequations} \label{eq:dft_idft_in_tildefp}
+\begin{align}
+\mathfrak{f}(y) &= \widetilde{\mathfrak{f}}(y); \\
+\mathfrak{f}^{-1}(y) &= \widetilde{\mathfrak{f}}^{-1}(y).
+\end{align}
+\end{subequations}
 
 Let us now consider the cyclic convolution $\widetilde{\star}$ for $\widetilde{\mathrm{F}}_p;$
-we know that
+by~\eqref{eq:conv_theorem}, we know that
 $$x \, \widetilde{\star} \, y = \widetilde{\mathfrak{f}}^{-1}
 \big( \thinspace \widetilde{\mathfrak{f}}(x) \, \widetilde{\otimes} \, \widetilde{\mathfrak{f}}(y) \big),$$
 where $\widetilde{\otimes}$ denotes element-wise $\redc$
 (which is, remember, the multiplication operation of $\widetilde{\mathrm{F}}_p.$)
-Having proven that
-$\widetilde{\mathfrak{f}} \equiv \mathfrak{f}$
-and
-$\widetilde{\mathfrak{f}}^{-1} \equiv \mathfrak{f}^{-1}$
-above, we can rewrite it as follows:
+Having proven~\eqref{eq:dft_idft_in_tildefp}, we can rewrite it as follows:
 $$x \, \widetilde{\star} \, y = R^{-1} \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),$$
 where $\cdot$ denotes element-wise product.
 This, in part, can be rewritten as
@@ -1048,7 +1093,8 @@ such a use case.
 \section{The matrix Fourier algorithms}
 
 We now describe the four-step and six-step algorithms for DFT/IDFT, which are matrix Fourier
-algorithms, meaning that they interpret sequences of length $N = N_1 N_2$ as $N_1 \times N_2$ matrices.
+algorithms, meaning that they interpret sequences of length $N = N_1 N_2$ as $N_1 \times N_2$
+matrices.
 
 We assume that rows, as opposed to columns, occupy contiguous ranges in underlying sequences;
 in other words, we assume row-major order:
@@ -1149,10 +1195,7 @@ including external-memory transforms and modern systems with multiple levels of 
 
 \subsection{Omitting matrix transpositions}
 
-Remember in section~\ref{section:omitting1} we established that, with
-$x \cdot y$ denoting scalar (element-wise) product between $x,y \in \mathcal{F}^N,$
-for any permutation $\pi$ we have $$\pi^{-1}(\pi(x) \cdot \pi(y)) = x \cdot y.$$
-
+Remember in section~\ref{section:omitting1} we established~\eqref{eq:cdot_permutation_invariance}.
 We then used this property to get rid of bit-reversal permutations in DIT and DIF.
 It turns out that, for both four-step and six-step algorithms,
 the same property can be employed to get rid of the
@@ -1173,6 +1216,108 @@ and step 5 of the inverse transform, we need to perform bit-reversal permutation
 
 \subsection{Algorithm for matrix transposition}
 
+Suppose we want to transpose a matrix with $n$ rows and $2n$ columns in-place.
+
+Let $M$ be the matrix we want to transpose.
+Split $M$ into two $n$-by-$n$ submatrices, left submatrix $A$ and right submatrix $B$:
+$$
+M = \begin{bmatrix}
+A & B
+\end{bmatrix}.
+$$
+
+Note that
+$$
+M^T =
+\begin{bmatrix}
+    A & B
+\end{bmatrix}^T =
+\begin{bmatrix}
+    A^T \\
+    B^T
+\end{bmatrix}.
+$$
+
+Let us refer to the rows of $A^T$ as $\alpha_1, \ldots, \alpha_n;$
+and to the rows of $B^T$ as $\beta_1, \ldots, \beta_n.$
+We write $\longleftrightarrow$ for ``equivalent in flat row-major order to''.
+Then,
+$$
+\begin{bmatrix}
+    A^T & B^T
+\end{bmatrix} =
+\begin{bmatrix}
+    \alpha_1 & \beta_1 \\
+    \ldots & \ldots \\
+    \alpha_n & \beta_n
+\end{bmatrix}
+\longleftrightarrow
+\langle \alpha_1, \beta_1, \alpha_2, \beta_2, \ldots, \alpha_n, \beta_n \rangle.
+$$
+It differs from
+$$
+M^T =
+\begin{bmatrix}
+    A^T \\
+    B^T
+\end{bmatrix} =
+\begin{bmatrix}
+    \alpha_1  \\
+    \ldots \\
+    \alpha_n \\
+    \beta_1 \\
+    \ldots \\
+    \beta_n
+\end{bmatrix}
+\longleftrightarrow
+\langle \alpha_1, \alpha_2, \ldots, \alpha_n, \beta_1, \beta_2, \ldots, \beta_n \rangle.
+$$
+
+So we can propose the following algorithm for transposing $M,$ although quite inefficient:
+\begin{enumerate}
+    \item Interpreting the whole array as $n \times 2n$ matrix, transpose the left and right submatrices.
+    \item Interpreting the whole array as $2n \times n$ matrix, permute its \textit{rows} in a certain way.
+Namely, we need to apply the permutation $\rho$ that sends a row with zero-based index
+$i, 0 \le i < 2n,$ to the zero-based index $$n \cdot (i \mymod 2) + (i \mydiv 2).$$
+\end{enumerate}
+
+But permuting \textit{rows} of a matrix means permuting \textit{columns} of the transposed matrix
+in the same way. To write it in a formal way, we need to introduce some new notation.
+
+If $\pi$ is a permutation on length-$N$ sequences,
+then $\pi' X,$ where $X$ is a matrix with $N$ rows, means $X$ with rows permuted by $\pi;$
+$\pi'' Y,$ where $Y$ is a matrix with $N$ columns, means $Y$ with columns permuted by $\pi.$
+
+We can then write formally, for any matrix $X$ with $N$ columns and permutation $\pi$ on length-$N$
+sequences,
+\begin{equation} \label{eq:matrix_permutation_rule}
+(\pi'' X)^T = \pi'(X^T).
+\end{equation}
+
+Define the result of transposition of both left and right submatrices of a $n$-by-$2n$ matrix $M$ as
+$\Psi(M).$ Note this is step 1 of our algorithm. We have:
+$$\rho' \Psi(M) = M^T.$$
+Substitute with $M = \rho'' L:$
+$$\rho' \Psi(\rho'' L) = (\rho'' L)^T.$$
+Apply~\eqref{eq:matrix_permutation_rule} to the right-hand side:
+$$\rho' \Psi(\rho'' L) = \rho'(L^T).$$
+Simplify, since $\rho'$ is a bijection:
+$$\Psi(\rho'' L) = L^T.$$
+
+It means that we can apply $\rho$ to \textit{columns} (as opposed to rows) \textit{before} the transpositions of
+submatrices (as opposed to after) --- and still get the transposed matrix as the result.
+
+Application of $\rho$ to a column can be done in a cache-efficient way, and requires $2n$ additional memory.
+
+Since $(M^T)^T = M,$ the transposition of $2n \times n$ matrix is the inverse operation on the array of
+the same length; it can be done as doing the inverse operations in reverse order: apply $\rho^{-1}$
+to columns, then transpose the submatrices. Application of $\rho^{-1}$ to a column can also be done in a
+cache-efficient way, and also requires $2n$ additional memory.
+
+This approach generalizes trivially to the case of $n \times C n$ and $C n \times n$ matrices.
+It requires $C n$ additional memory, which, for fixed $C,$ is $O(\sqrt{N}),$ where
+$N = C n^2$ is the number of elements in the matrix.
+
 \subsection{Optimizing the four-step algorithm for $N=3 \cdot 2^k$}
 
 \subsection{Optimizing the six-step algorithm for $N=2^k$}
@@ -1183,7 +1328,21 @@ and step 5 of the inverse transform, we need to perform bit-reversal permutation
 
 \subsection{Answer recovery}
 
-\subsection{Power table}
+We want to obtain an upper bound, in machine words, for the value of $\sigma_i + c_i$
+in~\eqref{eq:sigmai_and_zi}.
+Define $L = (B-1)^2 M.$ By~\eqref{eq:product_inequality} and~\eqref{eq:pi_bound}, we have
+$$L < p_1 p_2 < (\mu / 2)^2 = \mu^2 / 4.$$
+
+By~\eqref{eq:ci_bound}, we have $c_i \le L;$ and by~\eqref{eq:sigmai_bound}, we have
+$\sigma_i < (B-1)M \le L.$ But then
+$$\sigma_i + c_i < 2L < \mu^2 / 2.$$
+
+Note this is far from being a tight bound in numerical sense:
+in practice, the value of
+$\frac{L}{(B-1)M}=B-1$ is going to be much larger than 1, meaning that the exact upper bound on
+$c_i + \sigma_i$ is going to be closer to $\mu^2 / 4$ than to $\mu^2 / 2;$ but this is still a
+tight bound in the sense that maximum possible $c_i + \sigma_i$ would not into one machine word.
+This bound also has the advantage that it works for any $B > 1.$
 
 \subsection{Shenanigans with Montgomery reduction}
 

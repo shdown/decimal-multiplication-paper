@@ -432,8 +432,9 @@ void convolve_fourstep(
         FFT_ULIMB *scratch,
         const Field *field)
 {
-    size_t c = n / 3;
-    unsigned order = fft_zu_counttz(c);
+    // Odd number times 2^k has exactly k trailing zeros in binary.
+    unsigned order = fft_zu_counttz(n);
+    size_t c = ((size_t) 1) << order;
 
     // make table of powers for root (in Montgomery representation)
     mk_special_pow_table(field->root_M, scratch, c, field);
