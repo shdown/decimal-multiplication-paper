@@ -1210,16 +1210,128 @@ For the six-step algorithm, unfortunately, things are not so simple.
 We can simultaneously omit the final transposition step (step 6) in the direct transform
 and the initial transposition step (step 1) in the inverse transform; and can use DIF without
 bit-reversal permutations for step 5 of the direct transform and DIT without bit-reversal
-permutations for step 2 of the inverse transform; but we still have two matrix transposition steps
+permutations for step 2 of the inverse transform. But we still have two matrix transposition steps
 per transform, and no matter whether we use DIT or DIF for step 2 of the direct transform
 and step 5 of the inverse transform, we need to perform bit-reversal permutation.
 
+\subsection{Overview of matrix transposition}
+
+We will now discuss matrix transposition.
+Matrix transposition can be done either out-of-place or in-place.
+
+Out-of-place transposition means a separate array in the desired order is produced; this means
+using $O(N_1 N_2)$ additional memory, where $N_1$ and $N_2$ are dimensions of the matrix.
+
+The definitions of in-place transposition vary, but generally it is defined as an algorithm that
+uses ``much less'' additional memory than $O(N_1 N_2).$
+
+Another property that we might want from a transposition algorithm is cache friendliness.
+
+Note that a cache-oblivious algorithm for out-of-place matrix transposition is
+well-known~\cite{cache_rect_mat_trans}.
+We now want to explore the space of in-place transposition algorithms.
+
+The algorithm for in-place transposition of a square matrix is simple: element
+$\langle i, j \rangle$ is exchanged with element $\langle j, i \rangle.$
+The same approach works for transposing a square submatrix of a larger, generally rectangular
+matrix.
+For completeness, we provide the code below.
+
+\begin{procedure}[H]
+\caption{TransposeSquareSubMatrix($p$, $n$, $n'$)}
+\DontPrintSemicolon
+\KwData{
+    Pointer $p$ to the first row, first column of $n$-by-$n$ submatrix of a possibly larger matrix
+    with $n''$ columns and $n'$ rows stored in row-major order.
+    (Formally, if the submatrix starts at $i$-th row, $0 \le i < n'$ and
+    $j$-th column, $0 \le j < n'',$ then $p = q + n' \cdot i + j,$ where $q$ is the pointer to the
+    beginning of the larger matrix.)
+
+    Integer $n.$
+
+    Integer $n'.$
+}
+\KwResult{
+    The square submatrix is transposed.
+}
+\Begin{
+    \For{$i = 0$ \KwTo $n-1$}{
+        \For{$j = i + 1$ \KwTo $n-1$}{
+            {exchange $p[i \cdot n' + j]$ with $p[j \cdot n' + i]$}\;
+        }
+    }
+}
+\end{procedure}
+
+For a cache-oblivious version of this algorithm, see~\cite{cache_square_mat_trans}.
+
+We will now discuss in-place transposition of a rectangular matrix.
+
+In its general form, in-place transposition of a non-square matrix is quite hard.
+The classical study begins with defining the function $\mathcal{P}(a)$ such that,
+when transposing a matrix with $N_1$ rows and $N_2$ columns in row-major order,
+the element with index $a$ is sent to index $\mathcal{P}(a).$
+There is, then, a result which says that
+\begin{equation}
+\mathcal{P}(a) = \begin{cases}
+    N_1 N_2 - 1                 & \text{if } a = N_1 N_2 - 1; \\
+    N_1 a \mymod (N_1 N_2 - 1)  & \text{otherwise.}
+\end{cases}
+\end{equation}
+The number of fixed points of $\mathcal{P}$ is exactly
+$$
+1 + \gcd(N_1-1, N_1-1).
+$$
+The number of cycles of length $k>1$ of $\mathcal{P}$ is given by
+$$
+\frac{1}{k} \sum\limits_{d | k} \widetilde{\mu}(k/d) \gcd(N_1^d - 1, N_1 N_2 - 1),
+$$
+where $\widetilde{\mu}$ is the Möbius function and the summation is performed over all divisors of
+$k.$
+
+Most algorithms for in-place transposition are essentially of ``follow-the-cycles'' kind.
+This means that they iterate over all the cycles, and for each cycle $C,$
+they shift the elements of $C$ cyclically. There are, then, various approaches for
+locating the cycles, identifying the first element of a cycle, and tracking which cycles were
+already visited.
+If we limit ourselves to using only $O(N_1+N_2)$ additional memory,
+even more complex algorithms are genreally needed;
+\cite{Fich95permutingin}
+presents an algorithm with worst-case complexity of $O(N_1 N_2 \log(N_1 N_2)).$
+
+Notably, the algorithm for matrix transposition in \textbf{mpdecimal} is also
+``follow-the-cycles'' in nature, requiring $O(N_1 N_2)$ additional memory, although with a
+small constant: it uses a bit set to track which elements were already shifted.
+
+In the circumstances described above, one would believe,
+we have no choice but to give up and accept the complexity --- after all,
+much research has been dedicated to this problem;
+if there were a simple solution, somebody would find it --- and perhaps
+\textbf{mpdecimal} would use it.
+After all, the case of six-step FFT with its
+$2^k \times 2^{k+1}$ or $2^{k+1} \times 2^k$ matrices must be an important enough
+application for a matrix transposition.
+
+Well, as it turns out, there \textit{is} a simple solution,
+even more general than we need: it works for
+$n \times Cn$ or $Cn \times n$ matrices, for any constant $C.$
+It requires $Cn = O(n) = O(N_1) = O(N_2)$ additional memory,
+has $O(N_1 N_2)$ time complexity, and is very cache-friendly,
+assuming a cache-friendly procedure for transposing a square matrix is available.
+
 \subsection{Algorithm for matrix transposition}
 
-Suppose we want to transpose a matrix with $n$ rows and $2n$ columns in-place.
+We will now describe our algorithm for in-place transposition of $n \times Cn$ matrix,
+first for $C=2.$
+We will then show how to perform in-place transposition of $2n \times n$ matrix,
+which is the inverse operation.
+Finally, we discuss how our approach can be generalized for arbitrary $C.$
 
+Suppose we want to transpose a matrix with $n$ rows and $2n$ columns in-place.
 Let $M$ be the matrix we want to transpose.
-Split $M$ into two $n$-by-$n$ submatrices, left submatrix $A$ and right submatrix $B$:
+
+We split $M$ into two $n$-by-$n$ submatrices, and name the left submatrix $A$ and the right
+submatrix $B$:
 $$
 M = \begin{bmatrix}
 A & B
@@ -1238,12 +1350,22 @@ M^T =
 \end{bmatrix}.
 $$
 
+Define $\Psi(M)$ to be the result of transposing the left and right submatrices of $M$:
+$$
+\Psi(M) = \begin{bmatrix}
+    A^T & B^T
+\end{bmatrix}.
+$$
+Note $\Psi(M) \ne M^T;$
+we now want to explore how exactly $\Psi(M)$ differs from $M^T$ when both are written as ``flat''
+sequences in row-major order.
+
 Let us refer to the rows of $A^T$ as $\alpha_1, \ldots, \alpha_n;$
 and to the rows of $B^T$ as $\beta_1, \ldots, \beta_n.$
-We write $\longleftrightarrow$ for ``equivalent in flat row-major order to''.
+We write $\longleftrightarrow$ for ``equivalent in row-major order flat form to''.
 Then,
 $$
-\begin{bmatrix}
+\Psi(M) = \begin{bmatrix}
     A^T & B^T
 \end{bmatrix} =
 \begin{bmatrix}
@@ -1273,12 +1395,12 @@ M^T =
 \langle \alpha_1, \alpha_2, \ldots, \alpha_n, \beta_1, \beta_2, \ldots, \beta_n \rangle.
 $$
 
-So we can propose the following algorithm for transposing $M,$ although quite inefficient:
+So we can propose the following algorithm for transposing $M,$ although not yet in-place:
 \begin{enumerate}
     \item Interpreting the whole array as $n \times 2n$ matrix, transpose the left and right submatrices.
     \item Interpreting the whole array as $2n \times n$ matrix, permute its \textit{rows} in a certain way.
-Namely, we need to apply the permutation $\rho$ that sends a row with zero-based index
-$i, 0 \le i < 2n,$ to the zero-based index $$n \cdot (i \mymod 2) + (i \mydiv 2).$$
+        Namely, we need to apply the permutation $\rho$ that sends a row with zero-based index
+        $i, 0 \le i < 2n,$ to the zero-based index $$n \cdot (i \mymod 2) + (i \mydiv 2).$$
 \end{enumerate}
 
 But permuting \textit{rows} of a matrix means permuting \textit{columns} of the transposed matrix
@@ -1286,7 +1408,7 @@ in the same way. To write it in a formal way, we need to introduce some new nota
 
 If $\pi$ is a permutation on length-$N$ sequences,
 then $\pi' X,$ where $X$ is a matrix with $N$ rows, means $X$ with rows permuted by $\pi;$
-$\pi'' Y,$ where $Y$ is a matrix with $N$ columns, means $Y$ with columns permuted by $\pi.$
+and $\pi'' Y,$ where $Y$ is a matrix with $N$ columns, means $Y$ with columns permuted by $\pi.$
 
 We can then write formally, for any matrix $X$ with $N$ columns and permutation $\pi$ on length-$N$
 sequences,
@@ -1294,29 +1416,126 @@ sequences,
 (\pi'' X)^T = \pi'(X^T).
 \end{equation}
 
-Define the result of transposition of both left and right submatrices of a $n$-by-$2n$ matrix $M$ as
-$\Psi(M).$ Note this is step 1 of our algorithm. We have:
+We have:
 $$\rho' \Psi(M) = M^T.$$
-Substitute with $M = \rho'' L:$
+Substitute with $M = \rho'' L$:
 $$\rho' \Psi(\rho'' L) = (\rho'' L)^T.$$
 Apply~\eqref{eq:matrix_permutation_rule} to the right-hand side:
 $$\rho' \Psi(\rho'' L) = \rho'(L^T).$$
 Simplify, since $\rho'$ is a bijection:
 $$\Psi(\rho'' L) = L^T.$$
 
-It means that we can apply $\rho$ to \textit{columns} (as opposed to rows) \textit{before} the transpositions of
-submatrices (as opposed to after) --- and still get the transposed matrix as the result.
+It means that we can apply $\rho$ to \textit{columns} (as opposed to rows) \textit{before} the
+transpositions of submatrices (as opposed to after) --- and still get the transposed matrix as the
+result.
 
 Application of $\rho$ to a column can be done in a cache-efficient way, and requires $2n$ additional memory.
 
 Since $(M^T)^T = M,$ the transposition of $2n \times n$ matrix is the inverse operation on the array of
 the same length; it can be done as doing the inverse operations in reverse order: apply $\rho^{-1}$
-to columns, then transpose the submatrices. Application of $\rho^{-1}$ to a column can also be done in a
+to columns, then transpose the submatrices. Although $\rho^{-1} \ne \rho,$
+application of $\rho^{-1}$ to a column can also be done in a
 cache-efficient way, and also requires $2n$ additional memory.
 
-This approach generalizes trivially to the case of $n \times C n$ and $C n \times n$ matrices.
-It requires $C n$ additional memory, which, for fixed $C,$ is $O(\sqrt{N}),$ where
-$N = C n^2$ is the number of elements in the matrix.
+We provide the pseudocode for case of $C=2$ below.
+
+Note it uses the routine $\mathrm{TransposeSquareSubMatrix}$.
+It does not have to be implemented exactly in a way we demonstrated above;
+it just needs to have the same semantics.
+Note that it can be implemented in a cache-friendly way by dividing the square submatrix into
+tiles, perhaps recursively, transposing the elements inside tiles, and then transposing the tiles
+themselves; see~\cite{cache_square_mat_trans} for details.
+
+\begin{procedure}[H]
+\caption{PermuteRho($p$, $\zeta$, $n$)}
+\DontPrintSemicolon
+\KwData{
+    Pointer $p$ to array of size $2n$.
+    Pointer $\zeta$ to scratch buffer of size $2n.$
+    Integer $n.$
+}
+\KwResult{
+    The permutation $\rho$ is applied to the array.
+    The contents of the scratch buffer is undefined.
+}
+\Begin{
+    \For{$i = 0$ \KwTo $2n-1$}{
+        $\zeta[i] \longleftarrow p[i]$\;
+    }
+    \For{$i = 0$ \KwTo $n-1$}{
+        $p[i] \longleftarrow \zeta[2i]$\;
+        $p[i+n] \longleftarrow \zeta[2i+1]$\;
+    }
+}
+\end{procedure}
+
+\begin{procedure}[H]
+\caption{UnPermuteRho($p$, $\zeta$, $n$)}
+\DontPrintSemicolon
+\KwData{
+    Pointer $p$ to array of size $2n$.
+    Pointer $\zeta$ to scratch buffer of size $2n.$
+    Integer $n.$
+}
+\KwResult{
+    The permutation $\rho^{-1}$ is applied to the array.
+    The contents of the scratch buffer is undefined.
+}
+\Begin{
+    \For{$i = 0$ \KwTo $2n-1$}{
+        $\zeta[i] \longleftarrow p[i]$\;
+    }
+    \For{$i = 0$ \KwTo $n-1$}{
+        $p[2i] \longleftarrow \zeta[i]$\;
+        $p[2i+1] \longleftarrow \zeta[i+n]$\;
+    }
+}
+\end{procedure}
+
+\begin{procedure}[H]
+\caption{TransposeMatrixNx2N($p$, $\zeta$, $n$)}
+\DontPrintSemicolon
+\KwData{
+    Pointer $p$ to a matrix with $n$ rows and $2n$ columns stored in row-major order.
+    Pointer $\zeta$ to scratch buffer of size $2n.$
+    Integer $n.$
+}
+\KwResult{
+    The matrix is transposed.
+    The contents of the scratch buffer is undefined.
+}
+\Begin{
+    \For{$i = 0$ \KwTo $n-1$}{
+        $\mathrm{PermuteRho}(p + i \cdot 2n, \zeta, n)$\;
+    }
+    $\mathrm{TransposeSquareSubMatrix}(p, n, 2n)$\;
+    $\mathrm{TransposeSquareSubMatrix}(p + n, n, 2n)$\;
+}
+\end{procedure}
+
+\begin{procedure}[H]
+\caption{TransposeMatrix2NxN($p$, $\zeta$, $n$)}
+\DontPrintSemicolon
+\KwData{
+    Pointer $p$ to a matrix with $2n$ rows and $n$ columns stored in row-major order.
+    Pointer $\zeta$ to scratch buffer of size $2n.$
+    Integer $n.$
+}
+\KwResult{
+    The matrix is transposed.
+    The contents of the scratch buffer is undefined.
+}
+\Begin{
+    $\mathrm{TransposeSquareSubMatrix}(p, n, 2n)$\;
+    $\mathrm{TransposeSquareSubMatrix}(p + n, n, 2n)$\;
+    \For{$i = 0$ \KwTo $n-1$}{
+        $\mathrm{UnPermuteRho}(p + i \cdot 2n, \zeta, n)$\;
+    }
+}
+\end{procedure}
+
+This approach generalizes trivially to the case of $n \times C n$ and $C n \times n$ matrices;
+it would require $Cn$ additional memory.
 
 \subsection{Optimizing the four-step algorithm for $N=3 \cdot 2^k$}
 
