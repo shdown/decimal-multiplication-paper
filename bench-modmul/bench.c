@@ -14,7 +14,34 @@ DOUBLE_ULIMB full_prod(ULIMB x, ULIMB y)
     return ((DOUBLE_ULIMB) x) * y;
 }
 
-#if defined(USE_SOLINAS)
+#if defined(USE_NAIVE)
+
+#define MODULO 18446744069414584321ull
+static inline FORCE_INLINE
+ULIMB mul(ULIMB x, ULIMB y)
+{
+    DOUBLE_ULIMB t = full_prod(x, y);
+    ULIMB t_hi = t >> LIMB_BITS;
+    ULIMB t_lo = t;
+
+    ULIMB q, r;
+
+    asm inline (
+        "divq %4\n"
+
+        : /*0*/ "=a" (q)
+        , /*1*/ "=d" (r)
+
+        : /*2*/ "0" (t_lo)
+        , /*3*/ "1" (t_hi)
+        , /*4*/ "r" (MODULO)
+
+        : "cc");
+
+    return r;
+}
+
+#elif defined(USE_SOLINAS)
 
 #define MODULO 18446744069414584321ull
 static inline FORCE_INLINE
@@ -55,7 +82,7 @@ ULIMB mul(ULIMB x, ULIMB y)
 }
 
 #else
-#   error "Please define either USE_SOLINAS or USE_MONT."
+#   error "Please define either of: USE_NAIVE, USE_SOLINAS, USE_MONT."
 #endif
 
 static int parse_int_or_die(const char *s)

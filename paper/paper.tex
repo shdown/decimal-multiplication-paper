@@ -47,7 +47,7 @@
     In this paper we describe our implementation and discuss further possible optimizations.
     Our contributions are the following:
     (1) the ``linearity trick'' for using Montgomery reduction with NTT without separate steps of conversion into/out of Montgomery form;
-    (2) a simple cache-oblivious algorithm for in-place $2n \times n$ or $n \times 2n$ matrix transposition, the need for which arises in the ``six-step algorithm'' variation of the matrix Fourier algorithm, and which does not seem to be widely known.
+    (2) a simple cache-efficient algorithm for in-place $2n \times n$ or $n \times 2n$ matrix transposition, the need for which arises in the ``six-step algorithm'' variation of the matrix Fourier algorithm, and which does not seem to be widely known.
     Notable findings include:
     (1) use of two prime moduli instead of three makes sense even considering the worst case of increasing the size of the input, and makes for simpler answer recovery;
     (2) the ``six-step algorithm'', supposedly fast for large transforms due to cache-friendliness, is of little use on modern systems for transforms of sizes up to $\approx 2^{27}.$
@@ -588,7 +588,9 @@ As for software emulation, both GNU GCC and Clang compilers provide \verb!uint64
 platforms, and \verb!unsigned __int128! type on 64-bit platforms,
 with support for the division operation.
 
-Unfortunately, this method is very slow. % TODO
+Unfortunately, this method is very slow; in our benchmark, native division on x86-64
+was 720\% slower than the Montgomery reduction. The code can be found in the
+\verb!bench-modmul! subdirectory of our repository.
 
 \subsubsection{Barrett reduction}
 
@@ -706,7 +708,7 @@ actually shifting the bits. This prime also requires at most 2 rounds of reducti
 
 We found that on a modern x86-64 system, reduction with two rounds of $r$ is slower by
 $\approx$ 15\% compared to Montgomery reduction;
-the code can be found in the \verb!bench-solinas! subdirectory of our repository.
+the code can be found in the \verb!bench-modmul! subdirectory of our repository.
 
 We think the most likely explanation for this finding is that, on modern x86-64 systems, hardware
 multipliers are sufficiently performant to render special schemes for reduction modulo a
@@ -1130,7 +1132,7 @@ DFT of length $N = RC$ can be computed as follows:
     \item $[R \times C]$, transpose the matrix.
 \end{enumerate}
 
-IDFT of length $N = RC$ can be computed as follows:
+IDFT of length $N = RC$ can be computed as follows, not counting final multiplication by $N^{-1}$:
 \begin{enumerate}
     \item $[C \times R],$ transpose the matrix.
     \item $[R \times C],$ perform (length $C$) IDFT on each row with $\xi = (\xi_N)^R.$
@@ -1164,7 +1166,7 @@ DFT of length $N = RC$ can be computed as follows:
     \item $[R \times C],$ transpose the matrix.
 \end{enumerate}
 
-IDFT of length $N = RC$ can be computed as follows:
+IDFT of length $N = RC$ can be computed as follows, not counting final multiplication by $N^{-1}$:
 \begin{enumerate}
     \item $[C \times R],$ transpose the matrix.
     \item $[R \times C],$ perform (length $C$) IDFT on each row with $\xi = (\xi_N)^R.$
@@ -1280,7 +1282,7 @@ There is, then, a result which says that
 \end{equation}
 The number of fixed points of $\mathcal{P}$ is exactly
 $$
-1 + \gcd(N_1-1, N_1-1).
+1 + \gcd(N_1-1, N_2-1).
 $$
 The number of cycles of length $k>1$ of $\mathcal{P}$ is given by
 $$
@@ -1290,8 +1292,8 @@ where $\widetilde{\mu}$ is the Möbius function and the summation is performed o
 $k.$
 
 Most algorithms for in-place transposition are essentially of ``follow-the-cycles'' kind.
-This means that they iterate over all the cycles, and for each cycle $C,$
-they shift the elements of $C$ cyclically. There are, then, various approaches for
+This means that they iterate over all the cycles, and for each cycle,
+they shift its elements cyclically. There are, then, various approaches for
 locating the cycles, identifying the first element of a cycle, and tracking which cycles were
 already visited.
 If we limit ourselves to using only $O(N_1+N_2)$ additional memory,
@@ -1320,6 +1322,7 @@ has $O(N_1 N_2)$ time complexity, and is very cache-friendly,
 assuming a cache-friendly procedure for transposing a square matrix is available.
 
 \subsection{Algorithm for matrix transposition}
+\label{section:mat_trans_algo}
 
 We will now describe our algorithm for in-place transposition of $n \times Cn$ matrix,
 first for $C=2.$
@@ -1429,7 +1432,8 @@ It means that we can apply $\rho$ to \textit{columns} (as opposed to rows) \text
 transpositions of submatrices (as opposed to after) --- and still get the transposed matrix as the
 result.
 
-Application of $\rho$ to a column can be done in a cache-efficient way, and requires $2n$ additional memory.
+Application of $\rho$ to a column can be done in a cache-efficient way, and requires $2n$
+additional memory.
 
 Since $(M^T)^T = M,$ the transposition of $2n \times n$ matrix is the inverse operation on the array of
 the same length; it can be done as doing the inverse operations in reverse order: apply $\rho^{-1}$
@@ -1442,8 +1446,8 @@ We provide the pseudocode for case of $C=2$ below.
 Note it uses the routine $\mathrm{TransposeSquareSubMatrix}$.
 It does not have to be implemented exactly in a way we demonstrated above;
 it just needs to have the same semantics.
-Note that it can be implemented in a cache-friendly way by dividing the square submatrix into
-tiles, perhaps recursively, transposing the elements inside tiles, and then transposing the tiles
+It can be implemented in a cache-friendly way by dividing the square submatrix into
+tiles, perhaps recursively, transposing the elements inside tiles, and then swapping the tiles
 themselves; see~\cite{cache_square_mat_trans} for details.
 
 \begin{procedure}[H]
@@ -1539,7 +1543,108 @@ it would require $Cn$ additional memory.
 
 \subsection{Optimizing the four-step algorithm for $N=3 \cdot 2^k$}
 
+With $N=3 \cdot 2^k,$ we interpret the sequence as a matrix with 3 rows and $2^k$ columns.
+
+Observe that steps 1 and 2 of the direct transform, namely
+\begin{itemize}
+\item length-3 DFT on each column,
+\item multiplication by $(\xi_N)^{ij}$),
+\end{itemize}
+as well as steps 3 and 4 of the inverse transform, namely
+\begin{itemize}
+\item multiplication by $(\xi_N)^{-ij},$
+\item length-3 IDFT on each column,
+\end{itemize}
+can be merged (performed in one pass over the columns).
+In fact, they should be merged, as it produces less loads/stores and leads to better
+cache utilization.
+
+If, additionally, we need to multiply each matrix element by some factor $\Phi,$
+then we can meld this operation into the column operations as well; and, as it turns out,
+this can save us a few multiplications per column.
+Note there is no difference at which step to multiply the matrix by a scalar $\Phi,$
+because all the column operations involved are linear.
+
+Note that we do need to multiply everything by $N^{-1}$ after performing the inverse transform
+(or by another factor if the linearity trick is used; see section~\ref{section:trick}).
+For the direct transform, we only need to ``multiply'' (perform $\redc$ with $R^2$)
+if the linearity trick is not used.
+
+Suppose we need to perform length-3 DFT on each column, then multiply each matrix element indexed
+$\langle i,j \rangle$
+by $(\xi_N)^{ij};$ and also multiply everything by a factor $\Phi.$
+Define $\Gamma = \xi_N,$ $\Lambda = (\xi_N)^{N/3}.$
+This operation on a signle column with index $j,$
+$\langle x, y, z \rangle \mapsto \langle x', y', z' \rangle,$ can be expresed as:
+
+\begin{subequations}
+\begin{align}
+    x' &= \Phi (x + y + z); \\
+    y' &= \widetilde{\Phi}_1 (x + y \Lambda   + z \Lambda^2); \\
+    z' &= \widetilde{\Phi}_2 (x + y \Lambda^2 + z \Lambda),
+\end{align}
+\end{subequations}
+where
+\begin{subequations}
+\begin{align}
+    \widetilde{\Phi}_1 &= \Phi \Gamma^j; \\
+    \widetilde{\Phi}_2 &= \Phi \Gamma^{2j}.
+\end{align}
+\end{subequations}
+
+Note that $\widetilde{\Phi}_1$ and $\widetilde{\Phi}_2$ can be computed incrementally,
+with two variables initially having the value of $\Phi$ and get multiplied by
+$\Gamma$ and $\Gamma^2,$ correspondingly, after each iteration of the loop as we operate on columns
+$0, \ldots, 2^k-1.$ This is an improvement over a separate multiply-by-$\Phi$ step:
+we have 9 multiplications per column instead of 11.
+Note that if we do not need to multiply by $\Phi,$ we have 8 multiplications per column.
+
+Suppose now we need to multiply each matrix element indexed $\langle i,j \rangle$
+by $(\xi_N)^{-ij},$ then perform length-3 IDFT on each column; and also multiply everything by a
+factor $\Phi.$
+
+Define $\Gamma = (\xi_N)^{-1},$ $\Lambda = (\xi_N)^{-N/3}.$
+This operation on a signle column with index $j,$
+$\langle x, y, z \rangle \mapsto \langle x', y', z' \rangle,$ can be expresed as:
+
+\begin{subequations}
+\begin{align}
+    x' &= \widetilde{x} + \widetilde{y}           + \widetilde{z}; \\
+    y' &= \widetilde{x} + \widetilde{y} \Lambda   + \widetilde{z} \Lambda^2; \\
+    z' &= \widetilde{x} + \widetilde{y} \Lambda^2 + \widetilde{z} \Lambda,
+\end{align}
+\end{subequations}
+where
+\begin{subequations}
+\begin{align}
+    \widetilde{x} &= x \cdot \Phi; \\
+    \widetilde{y} &= y \cdot \Phi \Gamma^j; \\
+    \widetilde{z} &= z \cdot \Phi \Gamma^{2j}.
+\end{align}
+\end{subequations}
+
+Again, the factors for $\widetilde{y}$ and $\widetilde{z},$
+that is $\Phi \Gamma^j$ and $\Phi \Gamma^{2j},$ can be computed incrementally.
+Similarly to the case of direct transform, this is an improvement over a
+separate multiply-by-$\Phi$ step: 9 multiplications per column instead of 11.
+
 \subsection{Optimizing the six-step algorithm for $N=2^k$}
+
+We need to factorize $N = 2^k$ into $N_1 \cdot N_2 = N$ so that $\max\{N_1, N_2\}$ is as small as
+possible.
+This is because we will perform transforms of lengths both $N_1$ and $N_2,$ and we want to achieve
+good cache utilization.
+This is done by choosing $N_1 = 2^{\lfloor k / 2 \rfloor}, N_2 = 2^{\lceil k / 2 \rceil}.$
+Note that in case of even $k,$ the matrix is square; in case of odd $k,$
+$N_2 = 2 \cdot N_1$ and the matrix can be transposed with the algorithm we described in
+section~\ref{section:mat_trans_algo}.
+
+Just like with the four-step algorithm, it is desirable to merge together the steps of
+multiplication by $(\xi_N)^{\pm ij}$ and multiplication by a scalar $\Phi,$
+and compute the factor $\Phi (\xi_N)^{\pm ij}$ for the current element at
+$\langle i,j \rangle$ incrementally.
+Compared to a separate multiply-by-$\Phi$ step, this approach
+lowers the number of multiplications from $3N + o(N)$ to $2N + o(N).$
 
 \section{Low-level details}
 
@@ -1560,12 +1665,14 @@ Note this is far from being a tight bound in numerical sense:
 in practice, the value of
 $\frac{L}{(B-1)M}=B-1$ is going to be much larger than 1, meaning that the exact upper bound on
 $c_i + \sigma_i$ is going to be closer to $\mu^2 / 4$ than to $\mu^2 / 2;$ but this is still a
-tight bound in the sense that maximum possible $c_i + \sigma_i$ would not into one machine word.
+tight bound in the sense that the maximum possible $c_i + \sigma_i$ would overflow one machine word.
 This bound also has the advantage that it works for any $B > 1.$
 
 \subsection{Shenanigans with Montgomery reduction}
 
 Remember the procedure $\mathrm{MontgomeryReduce}(a)$ that we defined in section~\ref{section:montgomery_intro}.
+
+\subsection{Cache aliasing problems}
 
 \bibliography{paper}{}
 \bibliographystyle{plain}
