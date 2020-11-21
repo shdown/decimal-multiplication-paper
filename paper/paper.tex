@@ -7,6 +7,7 @@
 \usepackage{amsmath}
 \usepackage{mathrsfs}
 \usepackage{cite}
+\usepackage{url}
 \usepackage[ruled]{algorithm2e}
 
 \makeatletter
@@ -64,7 +65,7 @@ It is a common theme in practical analysis of algorithms that ``fancy'' algorith
 For example, virtually all partical implementations of the ``fancy'' sorting algorithms that are divide-and-conquer in nature --- quick sort and merge sort --- do in fact fall back to ``dumb'' quadratic sorts if the size of the input if less than some threshold.
 In some cases, it is not even a matter of ``fancy'' versus ``dumb'' dichotomy, but rather there is a ``hierarchy of fanciness'':
 a group of algorithms with different asymptotic behavior such that it makes sense to use each one of them only for some range of values of $n.$
-To give an example, \textbf{libgmp} employs the following ``hierarchy of fanciness'' for multiplication:
+To give an example, \textbf{libgmp} employs the following ``hierarchy of fanciness'' for multiplication~\cite{gmp_fh}:
 first goes the ``basecase'' (quadratic) algorithm; then, the Karatsuba algorithm; then, variations of the Toom-Cook algorithm (Toom-3; then Toom-4; then Toom-6.5; then Toom-8.5); finally, the Schönhage--Strassen algorithm (which is Fourier transform-based).
 
 Indeed, for smaller sizes of the multiplicands, it does makes sense to use quadratic, Karatsuba or Toom-Cook algorithms;
@@ -222,7 +223,7 @@ Above, the product of a scalar and a vector
 $\alpha v = \alpha \langle v_0, \ldots, v_{n-1} \rangle$ denotes, as usual,
 $\langle \alpha v_0, \ldots, \alpha v_{n-1} \rangle.$
 
-The convolution theorem says that, for any two vectors $x, y \in \mathcal{F}^N,$
+The convolution theorem~\cite{conv_theorem} says that, for any two vectors $x, y \in \mathcal{F}^N,$
 \begin{equation} \label{eq:conv_theorem}
 x \star y = \mathfrak{f}^{-1}\big( \mathfrak{f}(x) \cdot \mathfrak{f}(y) \big),
 \end{equation}
@@ -238,7 +239,8 @@ There are algorithms for computing both discrete Fourier transform and inverse d
 efficiently --- in $O(N \log N)$ time, provided that addition and multiplication
 in $\mathcal{F}$ take $O(1)$ time. Any such algorithm is called a fast Fourier transform (FFT).
 
-Although an $O(N \log N)$ FFT algorithm exists that works for arbitrary $N,$ even prime,
+Although an $O(N \log N)$ FFT algorithm exists that works for arbitrary $N,$ even
+prime~\cite{bluestein},
 the most widely used FFT algorithm, the Cooley---Tukey algorithm, works by re-writing a transform
 of composite length $N = N_1 N_2$ into smaller transforms of lengths $N_1$ and $N_2.$
 Thus, it works only for the values of $N$ which are highly composite;
@@ -259,14 +261,16 @@ The main drawback of this algorithm is precision issues.
 Formally, it is not even a sound algorithm for multiplication: provided that the precision of
 your floating-point values is bounded, you can not multiply arbitrarily large numbers with it: at
 some point, you are going to get a round-off error large enough to produce a wrong digit in the
-answer.
+answer~\cite{precision_paper}.
 
 In order to get a provably correct answer, you have to put less bits of information into the
-floating-point values than otherwise possible. Because of that, in order to achieve performance
+floating-point values than otherwise possible~\cite{gmp_paper, mattcomp_precision}.
+Because of that, in order to achieve performance
 parity with multiplication algorithms that abstain from use of floating point, platform-specific
-SIMD extensions are often used. Also, in order to get a provably correct result, you need to know
-the precision of your floating-point types, as well as possible quirks of their implementation ---
-i.e., depend on the platform.
+SIMD extensions are often used~\cite{gmp_paper}.
+Also, in order to get a provably correct result, you need to know the precision of your
+floating-point types, as well as possible quirks of their implementation --- i.e., depend on the
+platform.
 
 \subsection{Number-theoretic transform}
 
@@ -555,6 +559,7 @@ $B=10^{19}$ on 64-bit systems and $B=10^{9}$ on 32-bit systems; the speedup fact
 $19/3=6.3333$ on 64-bit systems and $9/3=3$ on 32-bit systems.
 
 \subsection{Choosing the base}
+\label{section:bases}
 
 Definition~\eqref{eq:lambda} gives us a way to calculate
 $B = 10^{\lambda(\ell)}$ given the values of $\mu,$ $M,$ and $\ell.$
@@ -580,7 +585,7 @@ thus, our choice may affect our strategy of searching primes.
 \subsubsection{The naïve approach}
 
 The naïve method of modular reduction is to use, where it is available, a hardware instruction
-to divide two-words divident by single-word divisor into single-word quotient and single-word
+to divide two-words dividend by single-word divisor into single-word quotient and single-word
 remainder. Where not available, we would have to emulate such an instruction in software.
 
 Note that such an instruction exists in x86 and x86-64.
@@ -595,7 +600,7 @@ was 720\% slower than the Montgomery reduction. The code can be found in the
 \subsubsection{Barrett reduction}
 
 A method intended to be faster, while not requiring a change in our representation of field
-elements, is known as Barrett reduction. % TODO cite
+elements, is known as Barrett reduction~\cite{barrett}.
 
 It reduces $0 \le a < n^2$ modulo $n$ using some pre-computed value that depends on $n.$
 For a $k$-bit modulo $n,$ it internally (not counting the raw multiplication $xy = a$) performs:
@@ -607,7 +612,7 @@ For a $k$-bit modulo $n,$ it internally (not counting the raw multiplication $xy
 \subsubsection{Montgomery reduction}
 \label{section:montgomery_intro}
 
-A method even faster for our purposes, is Montgomery reduction.
+A method even faster for our purposes, is Montgomery reduction~\cite{Montgomery1985ModularMW}.
 
 Remember we defined $w$ as the bit width of the machine word;
 define then
@@ -690,8 +695,10 @@ of multiplication by $N^{-1}$ in the inverse transform; see section~\ref{section
 
 The \textbf{mpdecimal} library uses yet another method of modular reduction on 64-bit systems;
 it is based on the use of prime moduli of form $2^{64} - 2^{n} + 1.$
-Generally, such primes are knows as Solinas primes, defined as primes of form
-$f(2^m),$ where $f(x)$ is a low-degree polynomial with small integer coefficients.
+Generally, such primes are knows as Solinas primes, or generalized Mersenne
+primes~\cite{Solinas},
+defined as primes of form $f(2^m),$ where $f(x)$ is a low-degree polynomial with small integer
+coefficients.
 
 The single round of reduction modulo $p = 2^{64} - 2^{n} + 1$ is then defined as follows:
 $$r(2^{64} x_1 + x_0) = 2^{n} x_1 - x_1 + x_0,$$
@@ -1124,7 +1131,7 @@ For the purposes of this subsection:
 Fix the length of transform $N.$
 Fix also $\xi_N,$ a primitive $N$-th root of unity in the underlying field.
 
-DFT of length $N = RC$ can be computed as follows:
+DFT of length $N = RC$ can be computed as follows~\cite{mattcomp_mfa}:
 \begin{enumerate}
     \item $[R \times C]$, perform (length $R$) DFT on each column with $\xi = (\xi_N)^C.$
     \item $[R \times C]$, multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{ij}.$
@@ -1156,7 +1163,7 @@ For the purposes of this subsection:
 Fix the length of transform $N.$
 Fix also $\xi_N,$ a primitive $N$-th root of unity in the underlying field.
 
-DFT of length $N = RC$ can be computed as follows:
+DFT of length $N = RC$ can be computed as follows~\cite{mattcomp_mfa}:
 \begin{enumerate}
     \item $[R \times C],$ transpose the matrix.
     \item $[C \times R],$ perform (length $R$) DFT on each row with $\xi = (\xi_N)^C.$
@@ -1192,7 +1199,7 @@ power of two, so that the decimation in time (DIT) or decimation in frequency (D
 Cooley-Tukey algorithm can not be employed directly.
 
 The six-step algorithm has the advantage that, aside from matrix transpositions, it only accesses
-memory in strides of $R$ or $C.$ Thus, it might be faster in settings of hierarchical memory,
+memory in strides of $R$ and $C.$ Thus, it might be faster in settings of hierarchical memory,
 including external-memory transforms and modern systems with multiple levels of cache.
 
 \subsection{Omitting matrix transpositions}
@@ -1273,18 +1280,19 @@ In its general form, in-place transposition of a non-square matrix is quite hard
 The classical study begins with defining the function $\mathcal{P}(a)$ such that,
 when transposing a matrix with $N_1$ rows and $N_2$ columns in row-major order,
 the element with index $a$ is sent to index $\mathcal{P}(a).$
-There is, then, a result which says that
+It can be defined explicitly as follows:
 \begin{equation}
 \mathcal{P}(a) = \begin{cases}
     N_1 N_2 - 1                 & \text{if } a = N_1 N_2 - 1; \\
     N_1 a \mymod (N_1 N_2 - 1)  & \text{otherwise.}
 \end{cases}
 \end{equation}
-The number of fixed points of $\mathcal{P}$ is exactly
+There is, then, a result~\cite{fancything} saying that
+the number of fixed points of $\mathcal{P}$ is exactly
 $$
-1 + \gcd(N_1-1, N_2-1).
+1 + \gcd(N_1-1, N_2-1);
 $$
-The number of cycles of length $k>1$ of $\mathcal{P}$ is given by
+and the number of cycles of length $k>1$ of $\mathcal{P}$ is
 $$
 \frac{1}{k} \sum\limits_{d | k} \widetilde{\mu}(k/d) \gcd(N_1^d - 1, N_1 N_2 - 1),
 $$
@@ -1297,7 +1305,7 @@ they shift its elements cyclically. There are, then, various approaches for
 locating the cycles, identifying the first element of a cycle, and tracking which cycles were
 already visited.
 If we limit ourselves to using only $O(N_1+N_2)$ additional memory,
-even more complex algorithms are genreally needed;
+even more complex algorithms are generally needed;
 \cite{Fich95permutingin}
 presents an algorithm with worst-case complexity of $O(N_1 N_2 \log(N_1 N_2)).$
 
@@ -1545,18 +1553,18 @@ it would require $Cn$ additional memory.
 
 With $N=3 \cdot 2^k,$ we interpret the sequence as a matrix with 3 rows and $2^k$ columns.
 
-Observe that steps 1 and 2 of the direct transform, namely
+Observe that steps 1 and 2 of the direct transform:
 \begin{itemize}
 \item length-3 DFT on each column,
-\item multiplication by $(\xi_N)^{ij}$),
+\item multiplication by $(\xi_N)^{ij},$
 \end{itemize}
-as well as steps 3 and 4 of the inverse transform, namely
+as well as steps 3 and 4 of the inverse transform:
 \begin{itemize}
 \item multiplication by $(\xi_N)^{-ij},$
 \item length-3 IDFT on each column,
 \end{itemize}
-can be merged (performed in one pass over the columns).
-In fact, they should be merged, as it produces less loads/stores and leads to better
+can be merged --- performed in a single pass over the columns.
+In fact, they \textit{should} be merged, as it produces less loads/stores and leads to better
 cache utilization.
 
 If, additionally, we need to multiply each matrix element by some factor $\Phi,$
@@ -1565,18 +1573,19 @@ this can save us a few multiplications per column.
 Note there is no difference at which step to multiply the matrix by a scalar $\Phi,$
 because all the column operations involved are linear.
 
-Note that we do need to multiply everything by $N^{-1}$ after performing the inverse transform
-(or by another factor if the linearity trick is used; see section~\ref{section:trick}).
+Note that we are going to need to multiply everything by $N^{-1}$ after performing the inverse
+transform (or by another factor if the linearity trick is used; see section~\ref{section:trick}).
 For the direct transform, we only need to ``multiply'' (perform $\redc$ with $R^2$)
 if the linearity trick is not used.
 
+First, consider the case of direct transform.
 Suppose we need to perform length-3 DFT on each column, then multiply each matrix element indexed
 $\langle i,j \rangle$
 by $(\xi_N)^{ij};$ and also multiply everything by a factor $\Phi.$
-Define $\Gamma = \xi_N,$ $\Lambda = (\xi_N)^{N/3}.$
-This operation on a signle column with index $j,$
-$\langle x, y, z \rangle \mapsto \langle x', y', z' \rangle,$ can be expresed as:
 
+Define $\Gamma = \xi_N,$ $\Lambda = (\xi_N)^{N/3}.$
+This operation on a single column with index $j,$
+$\langle x, y, z \rangle \mapsto \langle x', y', z' \rangle,$ can be expressed as:
 \begin{subequations}
 \begin{align}
     x' &= \Phi (x + y + z); \\
@@ -1599,14 +1608,14 @@ $0, \ldots, 2^k-1.$ This is an improvement over a separate multiply-by-$\Phi$ st
 we have 9 multiplications per column instead of 11.
 Note that if we do not need to multiply by $\Phi,$ we have 8 multiplications per column.
 
-Suppose now we need to multiply each matrix element indexed $\langle i,j \rangle$
+Now, the case of inverse transform.
+We now need to multiply each matrix element indexed $\langle i,j \rangle$
 by $(\xi_N)^{-ij},$ then perform length-3 IDFT on each column; and also multiply everything by a
 factor $\Phi.$
 
 Define $\Gamma = (\xi_N)^{-1},$ $\Lambda = (\xi_N)^{-N/3}.$
-This operation on a signle column with index $j,$
-$\langle x, y, z \rangle \mapsto \langle x', y', z' \rangle,$ can be expresed as:
-
+This operation on a single column with index $j,$
+$\langle x, y, z \rangle \mapsto \langle x', y', z' \rangle,$ can be expressed as:
 \begin{subequations}
 \begin{align}
     x' &= \widetilde{x} + \widetilde{y}           + \widetilde{z}; \\
@@ -1630,11 +1639,15 @@ separate multiply-by-$\Phi$ step: 9 multiplications per column instead of 11.
 
 \subsection{Optimizing the six-step algorithm for $N=2^k$}
 
-We need to factorize $N = 2^k$ into $N_1 \cdot N_2 = N$ so that $\max\{N_1, N_2\}$ is as small as
-possible.
-This is because we will perform transforms of lengths both $N_1$ and $N_2,$ and we want to achieve
-good cache utilization.
-This is done by choosing $N_1 = 2^{\lfloor k / 2 \rfloor}, N_2 = 2^{\lceil k / 2 \rceil}.$
+Remember that the reason we might turn to using the six-step algorithm is its cache
+friendliness: if we interpret the sequence as $N_1 \times N_2$ matrix, then, aside from matrix
+transpositions, it only accesses memory in strides of $N_1$ and $N_2.$
+
+With $N = 2^k,$
+we need to factorize $N$ into $N_1 N_2 = N$ so that $N_1$ and $N_2$ are as close to each other
+as possible.
+
+This can be done by choosing $N_1 = 2^{\lfloor k / 2 \rfloor}, N_2 = 2^{\lceil k / 2 \rceil}.$
 Note that in case of even $k,$ the matrix is square; in case of odd $k,$
 $N_2 = 2 \cdot N_1$ and the matrix can be transposed with the algorithm we described in
 section~\ref{section:mat_trans_algo}.
@@ -1648,7 +1661,85 @@ lowers the number of multiplications from $3N + o(N)$ to $2N + o(N).$
 
 \section{Low-level details}
 
-\subsection{Modular addition and subtraction}
+\subsection{Modular addition, subtraction, and adjustment}
+
+For the purposes of this subsection, ``adjustment'' means reducing a value in range $[0; 2p-1]$
+modulo $p$ to be in range $[0; p-1].$
+
+Using actual conditional jumps on assembly level for modular addition, subtraction, or adjustment,
+is slow on most modern architectures:
+modern processors employ branch prediction, and branches of this
+sort are anything but predictable. This results in lots of costly branch mispredictions.
+
+We describe two possible ways to resolve this problem.
+
+\subsubsection{Bit wizardry}
+
+We assume here that two's complement is used,
+all values are $w$-bit,
+and a modulo $p < 2^w / 2$ is fixed.
+
+For a signed $w$-bit value $x,$ we define $\underline{\mathrm{ExtractSign}}(x)$ as follows:
+$$
+\underline{\mathrm{ExtractSign}}(x) =
+\begin{cases}
+0, & \text{if } x \ge 0; \\
+-1, & \text{if } x < 0.
+\end{cases}
+$$
+We can compute $\underline{\mathrm{ExtractSign}}(x)$ without branches as follows:
+perform signed right shift of $x$ by $(w-1)$ bits.
+This leads to filling all $w$ bits with the sign bit of $x;$
+all zeros result in $0,$ while all ones result in $-1.$
+We can then use this value as a mask.
+
+For $x \in [-p; p-1],$ we define
+$\underline{\mathrm{AdjustSigned}}(x)$ as follows:
+$$
+\underline{\mathrm{AdjustSigned}}(x) =
+\begin{cases}
+x, & \text{if } x \ge 0; \\
+x+p, & \text{if } x < 0.
+\end{cases}
+$$
+
+It can be computed without branches as follows:
+$$\underline{\mathrm{AdjustSigned}}(x) = x + (p \mathbin{\&} \underline{\mathrm{ExtractSign}}(x)),$$
+where $\mathbin{\&}$ denotes bitwise ``AND''.
+Note that $p \mathbin{\&} 0 = 0,$ $p \mathbin{\&} -1 = p.$
+
+The modular addition of $a,b \in [0; p-1]$ can then be expressed as
+$$\underline{\mathrm{AdjustSigned}}(a+b-p).$$
+The normal, ``unsigned'' adjustment of $a \in [0; 2p-1]$ is expressed as
+$$\underline{\mathrm{AdjustSigned}}(a-p).$$
+The modular subtraction of $a,b \in [0; p-1]$ is expressed as
+$$\underline{\mathrm{AdjustSigned}}(a-b).$$
+
+\subsubsection{Conditional moves}
+
+The x86 and x86-64 platforms provide ``conditional moves'' --- instructions that
+store a value in a register conditionally, depending on a flag.
+They do not alter control flow and are not subject to branch prediction.
+Various versions of ARM have similar capabilities, although differently named.
+
+Since version 3.8 (latest 11.0), the Clang compiler has built-in called
+\verb~__builtin_unpredictable(x)~. According to the documentation,
+it ``is used to indicate that a branch condition is unpredictable by hardware mechanisms such as
+branch prediction logic''. We used it to implement modular addition, subtraction, and adjustment,
+which resulted in 8---13\% speedup of the overall multiplication procedure.
+
+Curiously, \verb~__builtin_unpredictable~ does not seem to produce any effect at all:
+replacing \verb~__builtin_unpredictable(x)~ with \verb~(x)~ does not affect the generated code
+at all. This means that Clang is smart enough to replace the branch with a conditional move
+even without our hint. But this does not mean, however, that we should just write the code with
+the branch and rely on the compiler to figure it out; compiling the code with branches with GNU
+GCC 10.2.0 resulted in code 40---60\% slower than the one compiled with Clang, whilst with
+the ``bit wizardry'' approach, GNU GCC outputs code with performance comparable to Clang.
+This is because GNU GCC does not rewrite the branch into a conditional move, assuming, instead,
+that it can be predicted by the hardware.
+
+The above should mean, if anything, that compiler optimizations and heuristics are very flacky,
+and should never be relied upon.
 
 \subsection{Answer recovery}
 
@@ -1659,18 +1750,77 @@ $$L < p_1 p_2 < (\mu / 2)^2 = \mu^2 / 4.$$
 
 By~\eqref{eq:ci_bound}, we have $c_i \le L;$ and by~\eqref{eq:sigmai_bound}, we have
 $\sigma_i < (B-1)M \le L.$ But then
-$$\sigma_i + c_i < 2L < \mu^2 / 2.$$
+\begin{equation} \label{eq:two_word_bound}
+\sigma_i + c_i < 2L < \mu^2 / 2.
+\end{equation}
+We see that it fits into two machine words.
 
 Note this is far from being a tight bound in numerical sense:
 in practice, the value of
 $\frac{L}{(B-1)M}=B-1$ is going to be much larger than 1, meaning that the exact upper bound on
-$c_i + \sigma_i$ is going to be closer to $\mu^2 / 4$ than to $\mu^2 / 2;$ but this is still a
-tight bound in the sense that the maximum possible $c_i + \sigma_i$ would overflow one machine word.
+$\sigma_i + c_i$ is going to be closer to $\mu^2 / 4$ than to $\mu^2 / 2.$
+But this is still a tight bound in the sense that the maximum possible $\sigma_i + c_i$ would
+not fit into a single machine word.
 This bound also has the advantage that it works for any $B > 1.$
+
+\subsubsection{Division by constant}
+
+The iterative process~\eqref{eq:sigmai_and_zi} requires calculating both quotient and remainder
+of integer division.
+By~\eqref{eq:two_word_bound}, the dividend generally occupies two machine words.
+The divisor is $B,$ which, for our choice of bases (see section~\ref{section:bases}),
+always fits into one machine word.
+
+It is possible the built-in two-word types: \verb~uint64_t~ on 32-bit systems and
+\verb~unsigned __int128~ on 64-bit systems. But the latest versions of both Clang and GNU GCC do no
+optimize the division of two-word types by a constant, as they do for one-word types. Thus,
+this built-in division is slow.
+
+We use the approach described in~\cite{div_by_const} of rewriting a division by a constant
+into a sequence of cheaper operations, generally a single double-width multiplication,
+some bit shifts, and, for some divisors, addition and subtraction.
+For each possible value of $B$ (see, again, section~\ref{section:bases}: we support 3 different
+bases on 32-bit systems and 4 different bases on 64-bit systems), we generate the code for answer
+recovery that performs division by $B.$
+
+\subsubsection{Chinese remainder theorem}
+
+The explicit solution of finding the remainder $m = ( x \mymod (p_1 \cdot p_2) ),$
+where
+\begin{subequations}
+\begin{align}
+x \mymod p_1 &= a_1; \\
+x \mymod p_2 &= a_2,
+\end{align}
+\end{subequations}
+is given by
+\begin{equation}
+m = a_1 + p_1 \cdot \Big( \big( r \cdot (a_2 - a_1) \big) \, \mymod \, p_2 \Big),
+\end{equation}
+where
+$$r \equiv p_1^{-1} \, (\mymod \, p_2).$$
+
+If we sort the primes so that $p_1 < p_2,$
+then $( (a_2 - a_1) \mymod p_2 )$
+is just a subtraction modulo $p_2.$
+We define $\psi = (a_2 - a_1) \mymod p_2.$
+
+Note that we can pre-calculate the value of $r.$ We can also pre-calculate
+the Montgomery representation (see section~\ref{section:montgomery_intro})
+of $r$ for the second modulo,
+$$
+\widetilde{r} = (R \cdot r) \mymod p_2.
+$$
+Then, the value of $( (r \cdot \psi) \mymod p_2 )$ can be calculated as
+$$\varphi = \redc(\widetilde{r}, \psi),$$
+where the $\redc$ is done for the modulo $p_2.$
+
+The value of $m = a_1 + p_1 \cdot \varphi$ is then computed as usual.
 
 \subsection{Shenanigans with Montgomery reduction}
 
-Remember the procedure $\mathrm{MontgomeryReduce}(a)$ that we defined in section~\ref{section:montgomery_intro}.
+Remember the procedure $\mathrm{MontgomeryReduce}(a)$ that we defined in
+section~\ref{section:montgomery_intro}.
 
 \subsection{Cache aliasing problems}
 
