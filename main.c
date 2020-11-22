@@ -8,10 +8,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef METHOD
-#   define METHOD 1
-#endif
-
 static void die_oom(void)
 {
     fprintf(stderr, "Out of memory.\n");
@@ -46,15 +42,21 @@ static size_t div_ceil_zu(size_t x, size_t y)
     return x / y + !!(x % y);
 }
 
-static size_t x_calc_fft_size(size_t m)
+static size_t x_calc_fft_size(unsigned method, size_t m)
 {
-#if METHOD == 1 || METHOD == 6
-    size_t n = 1;
-#elif METHOD == 4
-    size_t n = 3;
-#else
-#   error "Unsupported METHOD."
-#endif
+    size_t n;
+    switch (method) {
+    case 1:
+    case 6:
+        n = 1;
+        break;
+    case 4:
+        n = 3;
+        break;
+    default:
+        fprintf(stderr, "Unknown method, expected either of: 1, 4, 6.\n");
+        abort();
+    }
 
     while (n < m)
         n = x_mul_zu(n, 2);
@@ -155,8 +157,22 @@ static int max_base_log(size_t ndigits)
     }
 }
 
-int main()
+int main(int argc, char **argv)
 {
+    if (argc != 2) {
+        fprintf(stderr, "USAGE: main METHOD\n");
+        fprintf(stderr, "  where METHOD must be either of: 1 4 6.\n");
+        fprintf(stderr, "METHOD of 1 means use the 'straight' FFT (function 'fft()').\n");
+        fprintf(stderr, "METHOD of 4 means use the four-step FFT (function 'fft_fourstep()').\n");
+        fprintf(stderr, "METHOD of 6 means use the six-step FFT (function 'fft_sixstep()').\n");
+        return 2;
+    }
+    unsigned method;
+    if (sscanf(argv[1], "%u", &method) != 1) {
+        fprintf(stderr, "Cannot parse '%s' as unsigned integer (METHOD).\n", argv[1]);
+        return 2;
+    }
+
     char *a = read_number_str();
     size_t na = strlen(a);
 
@@ -172,7 +188,7 @@ int main()
     size_t nlimbs_a = div_ceil_zu(na, base_log);
     size_t nlimbs_b = div_ceil_zu(nb, base_log);
     size_t nlimbs_r = x_add_zu(nlimbs_a, nlimbs_b);
-    size_t n = x_calc_fft_size(nlimbs_r);
+    size_t n = x_calc_fft_size(method, nlimbs_r);
 
     FFT_ULIMB *mem = x_calloc(sizeof(FFT_ULIMB), x_add_zu(4, x_mul_zu(n, 5)));
 
@@ -188,15 +204,19 @@ int main()
     parse_str(b1, b, nb, base_log);
     memcpy(b2, b1, sizeof(FFT_ULIMB) * n);
 
-#if METHOD == 1
-    fft(a1, b1, a2, b2, scratch, n);
-#elif METHOD == 4
-    fft_fourstep(a1, b1, a2, b2, scratch, n);
-#elif METHOD == 6
-    fft_sixstep(a1, b1, a2, b2, scratch, n);
-#else
-#   error "Unsupported METHOD."
-#endif
+    switch (method) {
+    case 1:
+        fft(a1, b1, a2, b2, scratch, n);
+        break;
+    case 4:
+        fft_fourstep(a1, b1, a2, b2, scratch, n);
+        break;
+    case 6:
+        fft_sixstep(a1, b1, a2, b2, scratch, n);
+        break;
+    default:
+        abort();
+    }
 
     fft_recover_answer(a1, nlimbs_r, a1, a2, base_log);
 

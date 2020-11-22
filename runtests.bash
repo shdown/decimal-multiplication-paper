@@ -8,6 +8,18 @@
 
 set -e
 
+if (( $# != 1 )); then
+    cat >&2 <<__EOF__
+USAGE: $0 METHOD
+  where METHOD must be either of: 1 4 6.
+METHOD of 1 means test the "straigh" FFT (function 'fft()').
+METHOD of 4 means test the four-step FFT (function 'fft_fourstep()').
+METHOD of 6 means test the six-step FFT (function 'fft_sixstep()').
+__EOF__
+    exit 2
+fi
+METHOD=$1
+
 trim_to_n() {
     local n=$1
     local q=$((n/1024))
@@ -38,7 +50,7 @@ outfile2=/tmp/sudm_out2.txt
 test_for_n() {
     { gen_n_digits "$n"; gen_n_digits "$n"; } > "$infile" \
         || return $?
-    ./main < "$infile" > "$outfile1" \
+    ./main "$METHOD" < "$infile" > "$outfile1" \
         || return $?
     python3 -c 'x = int(input()); y = int(input()); print(x*y)' < "$infile" > "$outfile2" \
         || return $?
