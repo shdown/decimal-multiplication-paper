@@ -13,14 +13,14 @@
    pages={985–1003}
 }
 @INPROCEEDINGS{cache_square_mat_trans,
-  author={S. {Chatterjee} and S. {Sen}},
-  booktitle={Proceedings Sixth International Symposium on High-Performance Computer Architecture. HPCA-6 (Cat. No.PR00550)},
-  title={Cache-efficient matrix transposition},
-  year={2000},
-  volume={},
-  number={},
-  pages={195-205},
-  doi={10.1109/HPCA.2000.824350}
+    author={S. {Chatterjee} and S. {Sen}},
+    booktitle={Proceedings Sixth International Symposium on High-Performance Computer Architecture. {HPCA-6} (Cat. No.PR00550)},
+    title={Cache-efficient matrix transposition},
+    year={2000},
+    volume={},
+    number={},
+    pages={195-205},
+    doi={10.1109/HPCA.2000.824350}
 }
 @article{cache_rect_mat_trans,
     author = {Frigo, Matteo and Leiserson, Charles and Prokop, Harald and Ramachandran, Sridhar},
@@ -43,8 +43,8 @@
 @InProceedings{barrett,
     author="Barrett, Paul",
     editor="Odlyzko, Andrew M.",
-    title="Implementing the Rivest Shamir and Adleman Public Key Encryption Algorithm on a Standard Digital Signal Processor",
-    booktitle="Advances in Cryptology --- CRYPTO' 86",
+    title="Implementing the {Rivest} {Shamir} and {Adleman} Public Key Encryption Algorithm on a Standard Digital Signal Processor",
+    booktitle="Advances in Cryptology --- {CRYPTO'} 86",
     year="1987",
     publisher="Springer Berlin Heidelberg",
     address="Berlin, Heidelberg",
@@ -61,7 +61,7 @@
     pages={519-521}
 }
 @inproceedings{Solinas,
-  title={Generalized Mersenne Prime},
+  title={Generalized {Mersenne} Prime},
   author={J. Solinas},
   booktitle={Encyclopedia of Cryptography and Security},
   year={2005}
@@ -96,7 +96,7 @@
 @ARTICLE{bluestein,
     author={L. {Bluestein}},
     journal={IEEE Transactions on Audio and Electroacoustics},
-    title={A linear filtering approach to the computation of discrete Fourier transform},
+    title={A linear filtering approach to the computation of discrete {Fourier} transform},
     year={1970},
     volume={18},
     number={4},
@@ -105,14 +105,20 @@
 }
 @misc{gmp_fh,
     author="{GNU MP developers}",
-    title="Multiplication algorithms (GNU MP 6.2.1). GNU MP 6.2.1 documentation.",
-    howpublished="\url{https://gmplib.org/manual/Multiplication-Algorithms}",
-    year={2020},
+    title="Multiplication algorithms ({GNU} {MP} 6.2.1)",
+    howpublished="{GNU} {MP} 6.2.1 documentation. \url{https://gmplib.org/manual/Multiplication-Algorithms}",
+    note="[Online; accessed 20-November-2020]"
+}
+@misc{shenanigans_presentation,
+    author="David Harvey",
+    title="Faster arithmetic for number-theoretic transforms",
+    howpublished="Presentation at {FLINT}/{Sage} {Days}, {University} of {Warwick}. {Slides}. \url{https://pdfs.semanticscholar.org/e000/fa109f1b2a6a3e52e04462bac4b7d58140c9.pdf}",
+    year={2011},
     note="[Online; accessed 20-November-2020]"
 }
 @inproceedings{gmp_paper,
     author = {Gaudry, Pierrick and Kruppa, Alexander and Zimmermann, Paul},
-    title = {A Gmp-Based Implementation of Sch\"{o}Nhage-Strassen's Large Integer Multiplication Algorithm},
+    title = {A {GMP}-Based Implementation of {Sch\"{o}nhage-Strassen's} Large Integer Multiplication Algorithm},
     year = {2007},
     isbn = {9781595937438},
     publisher = {Association for Computing Machinery},
@@ -139,23 +145,15 @@
     volume = {72},
     year = {2003}
 }
-@inbook{mattcomp_precision,
+@book{mattcomp,
     author = {Arndt, Joerg},
     year = {2011},
     title = {Matters Computational: Ideas, Algorithms, Source Code},
     publisher = {Springer Berlin Heidelberg},
-    pages = {560--561},
-}
-@inbook{mattcomp_mfa,
-    author = {Arndt, Joerg},
-    year = {2011},
-    title = {Matters Computational: Ideas, Algorithms, Source Code},
-    publisher = {Springer Berlin Heidelberg},
-    pages = {438--439},
 }
 @article{fancything,
     author = {Cate, Esko G. and Twigg, David W.},
-    title = {Algorithm 513: Analysis of In-Situ Transposition [F1]},
+    title = {Algorithm 513: Analysis of In-Situ Transposition [{F1}]},
     year = {1977},
     issue_date = {March 1977},
     publisher = {Association for Computing Machinery},
@@ -169,4 +167,63 @@
     month = mar,
     pages = {104–110},
     numpages = {7}
+}
+@article{shenanigans,
+    title = "Faster arithmetic for number-theoretic transforms",
+    journal = "Journal of Symbolic Computation",
+    volume = "60",
+    pages = "113 - 119",
+    year = "2014",
+    issn = "0747-7171",
+    doi = "https://doi.org/10.1016/j.jsc.2013.09.002",
+    url = "http://www.sciencedirect.com/science/article/pii/S0747717113001181",
+    author = "David Harvey",
+    keywords = "Number-theoretic transform, Fast Fourier transform, Modular arithmetic, Efficient algorithm",
+    abstract = "We show how to improve the efficiency of the computation of fast Fourier transforms over Fp where p is a word-sized prime. Our main technique is optimisation of the basic arithmetic, in effect decreasing the total number of reductions modulo p, by making use of a redundant representation for integers modulo p. We give performance results showing a significant improvement over Shoupʼs NTL library."
+}
+@misc{smooth_the_stairs,
+    author = {Bailey, David},
+    year = {1998},
+    month = dec,
+    title = {On The Computational Cost of {FFT}-Based Linear Convolutions},
+}
+@misc{bit_rev_perm,
+    title={Practically efficient methods for performing bit-reversed permutation in {C++11} on the x86-64 architecture},
+    author={Christian Knauth and Boran Adas and Daniel Whitfield and Xuesong Wang and Lydia Ickler and Tim Conrad and Oliver Serang},
+    year={2017},
+    eprint={1708.01873},
+    archivePrefix={arXiv},
+    primaryClass={cs.MS}
+}
+@article{signed_montgomery,
+    title={Faster {AVX2} optimized {NTT} multiplication for Ring-{LWE} lattice cryptography},
+    author={Gregor Seiler},
+    journal={IACR Cryptol. ePrint Arch.},
+    year={2018},
+    volume={2018},
+    pages={39}
+}
+@article{mont_sp,
+    title={{Montgomery} Arithmetic from a Software Perspective},
+    author={Joppe W. Bos and P. Montgomery},
+    journal={IACR Cryptol. ePrint Arch.},
+    year={2017},
+    volume={2017},
+    pages={1057}
+}
+@article{belgian,
+  title={Parametrizable behavioral {IP} module for a data-localized low-power {FFT}},
+  author={E. Brockmeyer and C. Ghez and J. Deer and F. Catthoor and H. de Man},
+  journal={1999 IEEE Workshop on Signal Processing Systems. SiPS 99. Design and Implementation (Cat. No.99TH8461)},
+  year={1999},
+  pages={635-644}
+}
+@inproceedings{fftw,
+  title={Implementing {FFTs} in Practice},
+  author={S. Johnson and M. Frigo},
+  booktitle={Fast {Fourier} Transforms},
+  editor={C. S. Burrus},
+  publisher={Connexions, Houston},
+  chapter={11},
+  year={2008}
 }

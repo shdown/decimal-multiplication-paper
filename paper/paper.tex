@@ -9,6 +9,9 @@
 \usepackage{cite}
 \usepackage{url}
 \usepackage[ruled]{algorithm2e}
+\usepackage{graphicx,xcolor}
+\usepackage{gnuplottex}
+\usepackage{float}
 
 \makeatletter
 
@@ -44,14 +47,14 @@
 \begin{abstract}
     Decimal multiplication is the task of multiplying two numbers in base $10^N.$
     Specifically, we focus on the number-theoretic transform (NTT) family of algorithms.
-    Using only portable techniques, we achieve a 3x---5x speedup over the \textbf{mpdecimal} library.
+    Using only portable techniques, we achieve a 3x---5x speedup over the \textbf{mpdecimal}
+    library.
     In this paper we describe our implementation and discuss further possible optimizations.
-    Our contributions are the following:
-    (1) the ``linearity trick'' for using Montgomery reduction with NTT without separate steps of conversion into/out of Montgomery form;
-    (2) a simple cache-efficient algorithm for in-place $2n \times n$ or $n \times 2n$ matrix transposition, the need for which arises in the ``six-step algorithm'' variation of the matrix Fourier algorithm, and which does not seem to be widely known.
-    Notable findings include:
-    (1) use of two prime moduli instead of three makes sense even considering the worst case of increasing the size of the input, and makes for simpler answer recovery;
-    (2) the ``six-step algorithm'', supposedly fast for large transforms due to cache-friendliness, is of little use on modern systems for transforms of sizes up to $\approx 2^{27}.$
+    We also present a simple cache-efficient algorithm for in-place $2n \times n$ or
+    $n \times 2n$ matrix transposition, the need for which arises in the ``six-step algorithm''
+    variation of the matrix Fourier algorithm, and which does not seem to be widely known.
+    Another finding is that use of two prime moduli instead of three makes sense even considering
+    the worst case of increasing the size of the input, and makes for simpler answer recovery.
 \end{abstract}
 
 \section{Introduction}
@@ -264,7 +267,10 @@ some point, you are going to get a round-off error large enough to produce a wro
 answer~\cite{precision_paper}.
 
 In order to get a provably correct answer, you have to put less bits of information into the
-floating-point values than otherwise possible~\cite{gmp_paper, mattcomp_precision}.
+floating-point values than otherwise possible
+(tables of maximum number of decimal/binary digits are given in
+\cite[p. 560--561]{mattcomp} and \cite{gmp_paper};
+for explicit formulas, see \cite{precision_paper}).
 Because of that, in order to achieve performance
 parity with multiplication algorithms that abstain from use of floating point, platform-specific
 SIMD extensions are often used~\cite{gmp_paper}.
@@ -308,7 +314,7 @@ Note that the latter approach is just a generalization of the first one:
 just assume that $\gcd(p-1) = p-1.$
 
 Remember also that the ``high compositeness'' of $N,$ which must divide $\gcd(p_1 - 1, \ldots, p_n - 1),$ is required
-for the Cooley-Tukey algorithm to work on a length-$N$ transform. What a coincidence!
+for the Cooley-Tukey algorithm to work on a length-$N$ transform. Note the coincidence!
 
 \section{Choice of high-level algorithm}
 
@@ -956,7 +962,7 @@ so, for any permutation $\pi$ we have
 This means that, for the purpose of computing the cyclic convolution, we can use DIF for the direct
 transform and DIT for the inverse transform, and simultaneously omit the final permutation step in
 DIF and the initial permutation step in DIT.
-But note this does not mean just one of them can be omitted but not the other!
+Note this does not mean just one of them can be omitted but not the other.
 
 \subsection{Pre-calculating the table of root powers}
 
@@ -1084,7 +1090,7 @@ $$R(x \, \widetilde{\star} \, y) = R R^{-1}(x \star y) = x \star y.$$
 
 The latter approach is preferable for us: the Cooley-Tukey IDFT performs multiplication by
 scalar $N^{-1}$ as a separate final stage; we can ``mix in'' the factor of $R$ into this stage
-essentially for free!
+essentially for free.
 
 Note that multiplication by $R$ is $\redc$ with $R^2;$ so if the Montgomery representation of
 the factor $N^{-1}$ was $\psi = RN^{-1},$
@@ -1103,7 +1109,7 @@ such a use case.
 
 We now describe the four-step and six-step algorithms for DFT/IDFT, which are matrix Fourier
 algorithms, meaning that they interpret sequences of length $N = N_1 N_2$ as $N_1 \times N_2$
-matrices.
+matrices~\cite[p. 438--439]{mattcomp}.
 
 We assume that rows, as opposed to columns, occupy contiguous ranges in underlying sequences;
 in other words, we assume row-major order:
@@ -1131,7 +1137,7 @@ For the purposes of this subsection:
 Fix the length of transform $N.$
 Fix also $\xi_N,$ a primitive $N$-th root of unity in the underlying field.
 
-DFT of length $N = RC$ can be computed as follows~\cite{mattcomp_mfa}:
+DFT of length $N = RC$ can be computed as follows:
 \begin{enumerate}
     \item $[R \times C]$, perform (length $R$) DFT on each column with $\xi = (\xi_N)^C.$
     \item $[R \times C]$, multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{ij}.$
@@ -1163,7 +1169,7 @@ For the purposes of this subsection:
 Fix the length of transform $N.$
 Fix also $\xi_N,$ a primitive $N$-th root of unity in the underlying field.
 
-DFT of length $N = RC$ can be computed as follows~\cite{mattcomp_mfa}:
+DFT of length $N = RC$ can be computed as follows:
 \begin{enumerate}
     \item $[R \times C],$ transpose the matrix.
     \item $[C \times R],$ perform (length $R$) DFT on each row with $\xi = (\xi_N)^C.$
@@ -1549,6 +1555,12 @@ themselves; see~\cite{cache_square_mat_trans} for details.
 This approach generalizes trivially to the case of $n \times C n$ and $C n \times n$ matrices;
 it would require $Cn$ additional memory.
 
+\subsection{Algorithm for bit-reversal permutation}
+
+See~\cite{bit_rev_perm} for overview of algorithms for bit-reversal permutation.
+We use the ``XOR'' approach presented therein, which is simple and has competitive performance
+for small-to-medium sequence sizes.
+
 \subsection{Optimizing the four-step algorithm for $N=3 \cdot 2^k$}
 
 With $N=3 \cdot 2^k,$ we interpret the sequence as a matrix with 3 rows and $2^k$ columns.
@@ -1771,10 +1783,10 @@ By~\eqref{eq:two_word_bound}, the dividend generally occupies two machine words.
 The divisor is $B,$ which, for our choice of bases (see section~\ref{section:bases}),
 always fits into one machine word.
 
-It is possible the built-in two-word types: \verb~uint64_t~ on 32-bit systems and
-\verb~unsigned __int128~ on 64-bit systems. But the latest versions of both Clang and GNU GCC do no
-optimize the division of two-word types by a constant, as they do for one-word types. Thus,
-this built-in division is slow.
+It is possible to use the built-in two-word types, \verb~uint64_t~ on 32-bit systems and
+\verb~unsigned __int128~ on 64-bit systems, for this division;
+but neither the latest Clang nor GNU GCC do optimize the division of two-word types by a
+constant, as they both do for one-word types. Thus, this built-in division is slow.
 
 We use the approach described in~\cite{div_by_const} of rewriting a division by a constant
 into a sequence of cheaper operations, generally a single double-width multiplication,
@@ -1809,8 +1821,9 @@ Note that we can pre-calculate the value of $r.$ We can also pre-calculate
 the Montgomery representation (see section~\ref{section:montgomery_intro})
 of $r$ for the second modulo,
 $$
-\widetilde{r} = (R \cdot r) \mymod p_2.
+\widetilde{r} = (R \cdot r) \mymod p_2,
 $$
+where $R = 2^w \in \mathbb{N}.$
 Then, the value of $( (r \cdot \psi) \mymod p_2 )$ can be calculated as
 $$\varphi = \redc(\widetilde{r}, \psi),$$
 where the $\redc$ is done for the modulo $p_2.$
@@ -1819,10 +1832,97 @@ The value of $m = a_1 + p_1 \cdot \varphi$ is then computed as usual.
 
 \subsection{Shenanigans with Montgomery reduction}
 
+The idea for this optimization is due to~\cite{shenanigans}.
+
 Remember the procedure $\mathrm{MontgomeryReduce}(a)$ that we defined in
 section~\ref{section:montgomery_intro}.
+It requires $$0 \le a < \mu p,$$ where $p$ is our prime modulo,
+$\mu = 2^w,$ $w$ is the length of machine word in bits.
+In order to compute $\redc(x,y),$ we call $\mathrm{MontgomeryReduce}(xy).$
+Normally, we have $0 \le x,y < p.$
+By~\eqref{eq:pi_bound}, we also have $p < \mu/2.$
+It means that $$a = xy < p \mu / 2.$$
 
-\subsection{Cache aliasing problems}
+This means that we can call $\mathrm{MontgomeryReduce}(xy)$ if either $x$ or $y$ (but not both)
+is in ``unadjusted'' form. Being ``unadjusted'' means being in $[0; 2p-1],$
+thus possibly having different representation than the ``canonical'' one for this value
+(in $[0; p-1]$).
+
+We can obtain such an ``unadjusted'' value by omitting an adjustment:
+\begin{itemize}
+    \item After an addition: the unadjusted addition of $x,y \in [0; p-1]$ is just $x + y.$
+    \item After a subtraction: the unadjusted subtraction of $x,y \in [0; p-1]$ is $x - y + p.$
+    \item After $\redc$: observe that $\mathrm{MontgomeryReduce}$ itself
+          performs adjustment as the last step.
+\end{itemize}
+
+Note that we use this optimization much more sparingly than we theoretically could, because
+allowing non-local propagation of ``unadjustment'' would be a nightmare from the standpoint of
+reliability and debuggability: we would need to keep track of what can, and what can not, be
+``unadjusted'' at each step.
+
+\section{Prospects}
+
+We see the following possible ways to further improve the performance of decimal multiplication.
+
+\begin{enumerate}
+  \item \textbf{Improve cache utilization}.
+    \begin{enumerate}
+      \item Use breadth-first ordering, perhaps using explicit recursion.
+            This can be beneficial even considering the function call overhead,
+            as it leads to better cache utilization~\cite{fftw}.
+      \item Explore the ``Belgian approach''; see~\cite{belgian}.
+      \item Explore using higher-radix transforms (raidx-4, radix-8, etc).
+            Note that radix-4 is beneficial for complex FFT because,
+            for a standard representation by a pair of floating-point values,
+            multiplication by $i$ or $-i$ can be done significantly faster than normal
+            multiplication; but finite fields of integers modulo $p$ with standard representation
+            lack this property.
+            Nevertheless, higher-radix transforms might be of service because they have better cache
+            locality~\cite{fftw}.
+    \end{enumerate}
+  \item \textbf{Additional shenanigans}.
+    \begin{enumerate}
+      \item It is suggested in \cite{shenanigans, mont_sp} to use primes $p$ such that $p < \mu/4.$
+          Then, the Montgomery multiplication can be implemented in such a way that if the inputs
+          are in $[0; 2p-1],$ then the outputs are also in $[0; 2p-1],$ and no final conditional
+          subtraction is performed.
+      \item It is stated in~\cite{shenanigans_presentation} that we could benefit from
+          higher-radix transforms by further eliminating reductions from the butterflies.
+      \item Explore signed Montgomery reduction, as defined in~\cite{signed_montgomery}.
+    \end{enumerate}
+  \item \textbf{Smooth the stairs}, possibly utilizing ideas from~\cite{smooth_the_stairs}.
+        Currently, we can only perform transforms of lengths $2^k$ and $3 \cdot 2^k.$
+        It would be nice to be able to perform transforms of lengths that are in-between.
+\end{enumerate}
+
+\section{Benchmark}
+
+\begin{figure}[H]
+    \centering
+    \begin{gnuplot}[terminal=epslatex, terminaloptions=color]
+        set style line 1 lt 1 lw 2 lc rgb '#4682b4' pt -1
+        set style line 2 lt 1 lw 2 lc rgb '#ee0000' pt -1
+
+        set xtics axis
+        set ytics axis
+
+        set grid xtics lc rgb '#555555' lw 1 lt 0
+        set grid ytics lc rgb '#555555' lw 1 lt 0
+
+        set ytics 0.5
+        set xtics 1
+
+        set xlabel "$log_2(n)$"
+        set ylabel "ratio"
+
+        set autoscale xfix
+
+        plot \
+            'benchdata.txt' using 1:2 with lines ls 1 ti "CMOVs on", \
+            'benchdata.txt' using 1:3 with lines ls 2 ti "CMOVs off"
+    \end{gnuplot}
+\end{figure}
 
 \bibliography{paper}{}
 \bibliographystyle{plain}
