@@ -91,6 +91,12 @@ In order words, square brackets mean zero-based tuple indexing.
 
 By $\mathbb{N}$ we mean $\{0, 1, 2, \ldots\}.$
 
+By $x \mymod y,$ where $x \in \mathbb{Z},$ $y \in \mathbb{N} \setminus \{0\},$
+we mean $z \in \mathbb{N} \cap [0; y-1]$ such that $z \equiv x \, (\mymod \, y).$
+
+By $x \mydiv y,$ where $x \in \mathbb{N},$ $y \in \mathbb{N} \setminus \{0\},$
+we mean $\lfloor x / y \rfloor.$
+
 A ring is a set $\mathcal{R}$ equipped with two binary operations, $+$ and $\cdot,$ such that
 $\langle \mathcal{R}, + \rangle$ is an abelian group,
 $\cdot$ is associative and there an identity element with respect to $\cdot$ in $\mathcal{R},$
@@ -1032,8 +1038,8 @@ At first sight, there is not much difference between indexing
 $T_\ast[C_1 + j]$ and $t[j \cdot 2^{C_2}]$
 in the innermost loop,
 where $C_1$ and $C_2$ denote loop-invariant expressions that can be calculated once before the loop.
-But on x86 and x86-64, there is difference:
-these platforms can encode SIB (scale-index-base) directly in the instruction that dereferences the
+But on x86 and x86-64 platforms, there \textit{is} a difference:
+they can encode SIB (scale-index-base) directly in the instruction that dereferences the
 pointer, but only for constant scales of 1, 2, 4 and 8 bytes.
 This means that, if our field element is 8, 16, 32 or 64 bits long, we can dereference $p[j],$
 where $p$ points to $T_\ast[C_1],$ in one instruction; but dereferencing
@@ -1771,7 +1777,7 @@ $$\underline{\mathrm{AdjustSigned}}(a-b).$$
 \subsubsection{Conditional moves}
 \label{section:cmovs}
 
-The x86 and x86-64 platforms provide ``conditional moves'' --- instructions that
+The x86-64 platform provides ``conditional moves'' --- instructions that
 store a value in a register conditionally, depending on a flag.
 They do not alter control flow and are not subject to branch prediction.
 Various versions of ARM have similar capabilities, although differently named.
