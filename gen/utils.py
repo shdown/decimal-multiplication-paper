@@ -1,3 +1,6 @@
+# (c) 2020 shdown
+# This code is licensed under MIT license (see LICENSE.MIT for details)
+
 def egcd(a, b):
     s = 0
     old_s = 1

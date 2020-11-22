@@ -1,3 +1,6 @@
+// (c) 2020 shdown
+// This code is licensed under MIT license (see LICENSE.MIT for details)
+
 #include <mpdecimal.h>
 #include <stdio.h>
 #include <stdlib.h>

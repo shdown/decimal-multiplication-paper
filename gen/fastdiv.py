@@ -1,3 +1,6 @@
+# (c) 2020 shdown
+# This code is licensed under MIT license (see LICENSE.MIT for details)
+
 from utils import ceil_log2, decompose_pow2
 
 

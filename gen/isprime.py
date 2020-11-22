@@ -1,3 +1,6 @@
+# (c) 2020 shdown
+# This code is licensed under MIT license (see LICENSE.MIT for details)
+
 from utils import decompose_pow2, mod_pow
 
 

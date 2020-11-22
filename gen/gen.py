@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+
+# (c) 2020 shdown
+# This code is licensed under MIT license (see LICENSE.MIT for details)
+
 import argparse
 
 from isprime import is_prime

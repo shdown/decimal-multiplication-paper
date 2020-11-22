@@ -1,3 +1,11 @@
+% ``Speeding up decimal multiplication'' (c) by shdown
+%
+% ``Speeding up decimal multiplication'' is licensed under a
+% Creative Commons Attribution 4.0 International License.
+%
+% You should have received a copy of the license along with this
+% work. If not, see <http://creativecommons.org/licenses/by/4.0/>.
+
 \documentclass[a4paper,12pt]{article}
 \usepackage{standalone}
 
@@ -599,9 +607,8 @@ As for software emulation, both GNU GCC and Clang compilers provide \verb!uint64
 platforms, and \verb!unsigned __int128! type on 64-bit platforms,
 with support for the division operation.
 
-Unfortunately, this method is very slow; in our benchmark, native division on x86-64
-was 720\% slower than the Montgomery reduction. The code can be found in the
-\verb!bench-modmul! subdirectory of our repository.
+Unfortunately, this method is very slow; see section~\ref{section:modmul_bench} for the
+results of our benchmark against Montgomery reduction and Solinas reduction.
 
 \subsubsection{Barrett reduction}
 
@@ -720,12 +727,45 @@ by simply omitting (half-)words or assuming zero lower (half-)words, correspondi
 actually shifting the bits. This prime also requires at most 2 rounds of reduction.
 
 We found that on a modern x86-64 system, reduction with two rounds of $r$ is slower by
-$\approx$ 15\% compared to Montgomery reduction;
-the code can be found in the \verb!bench-modmul! subdirectory of our repository.
+$\approx$10\% compared to Montgomery reduction;
+see section~\ref{section:modmul_bench}.
 
 We think the most likely explanation for this finding is that, on modern x86-64 systems, hardware
 multipliers are sufficiently performant to render special schemes for reduction modulo a
 single-word $p=2^{N_1}-2^{N_2}+1$ useless, if Montgomery reduction can be used instead.
+
+\subsubsection{Benchmark}
+\label{section:modmul_bench}
+
+We benchmarked naïve division using x86-64
+\verb~divq~
+instruction, Montgomery reduction,
+and Solinas reduction.
+
+Given an argument $n,$ our benchmark performs $n$ iterations of loop with
+$10$ unrolled modular multiplications, performing in total $10 n$ modular multiplications.
+
+We compiled it using Clang 11.0.0, with option \verb!-O3!. The machine is
+Xiaomi RedmiBook 14" 2019 JYU4203CN laptop with
+Intel\textsuperscript{\textregistered} Core\texttrademark{} i3-8145U CPU @ 2.10GHz;
+CPU scaling governors for all CPUs were set to ``performance''.
+
+\begin{center}
+\begin{tabular}{ |c|c|c| }
+    \hline
+        Approach & $n$ & Time, s \\
+    \hline\hline
+        Naïve & $10^8$ & 23.04 \\
+    \hline
+        Montgomery & $10^8$ & 2.86 \\
+    \hline
+        Solinas & $10^8$ & 3.19 \\
+    \hline
+\end{tabular}
+\end{center}
+
+The code can be found in the \verb!bench-modmul! subdirectory of our repository
+(see section~\ref{section:avail}).
 
 \subsection{Searching for primes}
 
@@ -1686,6 +1726,7 @@ sort are anything but predictable. This results in lots of costly branch mispred
 We describe two possible ways to resolve this problem.
 
 \subsubsection{Bit wizardry}
+\label{section:bitwiz}
 
 We assume here that two's complement is used,
 all values are $w$-bit,
@@ -1728,6 +1769,7 @@ The modular subtraction of $a,b \in [0; p-1]$ is expressed as
 $$\underline{\mathrm{AdjustSigned}}(a-b).$$
 
 \subsubsection{Conditional moves}
+\label{section:cmovs}
 
 The x86 and x86-64 platforms provide ``conditional moves'' --- instructions that
 store a value in a register conditionally, depending on a flag.
@@ -1871,7 +1913,7 @@ We see the following possible ways to further improve the performance of decimal
       \item Use breadth-first ordering, perhaps using explicit recursion.
             This can be beneficial even considering the function call overhead,
             as it leads to better cache utilization~\cite{fftw}.
-      \item Explore the ``Belgian approach''; see~\cite{belgian}.
+      \item Explore what~\cite{gmp_paper} call the ``Belgian approach''; see~\cite{belgian}.
       \item Explore using higher-radix transforms (raidx-4, radix-8, etc).
             Note that radix-4 is beneficial for complex FFT because,
             for a standard representation by a pair of floating-point values,
@@ -1898,9 +1940,40 @@ We see the following possible ways to further improve the performance of decimal
 
 \section{Benchmark}
 
+We benchmarked our implementation (see section~\ref{section:avail} for the link to the repository)
+against \textbf{mpdecimal}.
+
+Since both rely on Cooley-Tukey,
+the graphs of time as a function of input size $n$ (in decimal digits)
+would be staircase-like.
+Define ``threshold input size'' for some fixed implementation as any value of $n$ where the
+discontinuity occurs --- a new ``stair'' pops up.
+
+We calculated the threshold input sizes of both our implementation and of the \textbf{mpdecimal}
+library, within reasonable limits ($2176 \le n \le 3\cdot10^7$).
+We merged all threshold values into a single list, sorted it, then formed a new list from the
+averages of each two adjacent values in the sorted list.
+We then appended the maximum threshold value plus one to the resulting list.
+It is easy to see that this way nothing gets lost --- assuming that the staircase, aside from
+discontinuities, is horizontal, we measure all possible cases.
+
+For each value of $n,$ we performed $\lfloor \frac{8 \cdot 10^7}{n} \rfloor$
+multiplications of numbers of $n$ decimal digits each.
+
+We compiled everything using Clang 11.0.0, with option \verb!-O3!. The machine is
+Xiaomi RedmiBook 14" 2019 JYU4203CN laptop with
+Intel\textsuperscript{\textregistered} Core\texttrademark{} i3-8145U CPU @ 2.10GHz;
+CPU scaling governors for all CPUs were set to ``performance''.
+
+We used \textbf{mpdecimal} version 2.5.0-4 from Debian Bullseye repositories
+for the ``amd64'' architecture.
+For further information on \textbf{mpdecimal}, refer to
+its homepage \url{http://www.bytereef.org/mpdecimal/index.html}.
+
 \begin{figure}[H]
     \centering
     \begin{gnuplot}[terminal=epslatex, terminaloptions=color]
+
         set style line 1 lt 1 lw 2 lc rgb '#4682b4' pt -1
         set style line 2 lt 1 lw 2 lc rgb '#ee0000' pt -1
 
@@ -1914,15 +1987,30 @@ We see the following possible ways to further improve the performance of decimal
         set xtics 1
 
         set xlabel "$log_2(n)$"
-        set ylabel "ratio"
+        set ylabel "Ratio"
 
         set autoscale xfix
 
         plot \
             'benchdata.txt' using 1:2 with lines ls 1 ti "CMOVs on", \
             'benchdata.txt' using 1:3 with lines ls 2 ti "CMOVs off"
+
     \end{gnuplot}
 \end{figure}
+
+``Ratio'' is time of \textbf{mpdecimal} divided by time of our implementation.
+The ``CMOVs on'' variant uses Clang-specific
+\verb~__builtin_unpredictable~ built-in for modular addition, subtraction, and adjustment
+(see section~\ref{section:cmovs});
+the ``CMOVs off'' variant relies on ``bit wizardry'' instead (see section~\ref{section:bitwiz}).
+
+\section{Availability}
+\label{section:avail}
+
+The code of our implementation, benchmark scripts, and \LaTeX source of this paper,
+are available at \url{https://github.com/shdown/decimal-multiplication-paper}.
+The code is licensed under the MIT license.
+The source of this paper is licensed under the Creative Commons BY 4.0 license.
 
 \bibliography{paper}{}
 \bibliographystyle{plain}

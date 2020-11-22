@@ -1,3 +1,6 @@
+// (c) 2020 shdown
+// This code is licensed under MIT license (see LICENSE.MIT for details)
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,18 +106,17 @@ int main(int argc, char **argv)
     }
     ULIMB x = parse_int_or_die(argv[1]);
     int n = parse_int_or_die(argv[2]);
-    ULIMB y = x >= 23 ? (x - 23) : (x + 23);
     for (int i = 0; i < n; ++i) {
-        x = mul(x, y);
-        y = mul(y, x);
-        x = mul(x, y);
-        y = mul(y, x);
-        x = mul(x, y);
-        y = mul(y, x);
-        x = mul(x, y);
-        y = mul(y, x);
-        x = mul(x, y);
-        y = mul(y, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
+        x = mul(x, x);
     }
-    printf("%u, %u\n", (unsigned) x, (unsigned) y);
+    printf("%u\n", (unsigned) x);
 }
