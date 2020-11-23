@@ -1919,7 +1919,7 @@ We see the following possible ways to further improve the performance of decimal
       \item Use breadth-first ordering, perhaps using explicit recursion.
             This can be beneficial even considering the function call overhead,
             as it leads to better cache utilization~\cite{fftw}.
-      \item Explore what~\cite{gmp_paper} call the ``Belgian approach''; see~\cite{belgian}.
+      \item Explore what~\cite{gmp_paper} calls the ``Belgian approach''; see~\cite{belgian}.
       \item Explore using higher-radix transforms (raidx-4, radix-8, etc).
             Note that radix-4 is beneficial for complex FFT because,
             for a standard representation by a pair of floating-point values,
@@ -1931,7 +1931,7 @@ We see the following possible ways to further improve the performance of decimal
     \end{enumerate}
   \item \textbf{Additional shenanigans}.
     \begin{enumerate}
-      \item It is suggested in \cite{shenanigans, mont_sp} to use primes $p$ such that $p < \mu/4.$
+      \item It is suggested in \cite{shenanigans, mont_sp} that we use primes $p$ such that $p < \mu/4.$
           Then, the Montgomery multiplication can be implemented in such a way that if the inputs
           are in $[0; 2p-1],$ then the outputs are also in $[0; 2p-1],$ and no final conditional
           subtraction is performed.
