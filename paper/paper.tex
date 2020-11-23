@@ -1370,7 +1370,7 @@ we have no choice but to give up and accept the complexity --- after all,
 much research has been dedicated to this problem;
 if there were a simple solution, somebody would find it --- and perhaps
 \textbf{mpdecimal} would use it.
-After all, the case of six-step FFT with its
+The case of six-step FFT with its
 $2^k \times 2^{k+1}$ or $2^{k+1} \times 2^k$ matrices must be an important enough
 application for a matrix transposition.
 
@@ -1666,8 +1666,8 @@ $0, \ldots, 2^k-1.$ This is an improvement over a separate multiply-by-$\Phi$ st
 we have 9 multiplications per column instead of 11.
 Note that if we do not need to multiply by $\Phi,$ we have 8 multiplications per column.
 
-Now, the case of inverse transform.
-We now need to multiply each matrix element indexed $\langle i,j \rangle$
+Consider now the case of inverse transform.
+We need to multiply each matrix element indexed $\langle i,j \rangle$
 by $(\xi_N)^{-ij},$ then perform length-3 IDFT on each column; and also multiply everything by a
 factor $\Phi.$
 
