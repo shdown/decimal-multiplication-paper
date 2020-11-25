@@ -1178,6 +1178,8 @@ For the purposes of this subsection:
         row index $i,$ where $0 \le i < N_1,$
         and column index $j,$ where $0 \le j < N_2,$ is said to be indexed $\langle i, j \rangle.$
 
+    \item IDFT* means IDFT without multiplication by $N^{-1}.$
+
 \end{itemize}
 
 Fix the length of transform $N.$
@@ -1191,12 +1193,12 @@ DFT of length $N = RC$ can be computed as follows:
     \item $[R \times C]$, transpose the matrix.
 \end{enumerate}
 
-IDFT of length $N = RC$ can be computed as follows, not counting final multiplication by $N^{-1}$:
+IDFT* of length $N = RC$ can be computed as follows:
 \begin{enumerate}
     \item $[C \times R],$ transpose the matrix.
-    \item $[R \times C],$ perform (length $C$) IDFT on each row with $\xi = (\xi_N)^R.$
+    \item $[R \times C],$ perform (length $C$) IDFT* on each row with $\xi = (\xi_N)^R.$
     \item $[R \times C],$ multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{-ij}.$
-    \item $[R \times C],$ perform (length $R$) IDFT on each column with $\xi = (\xi_N)^C.$
+    \item $[R \times C],$ perform (length $R$) IDFT* on each column with $\xi = (\xi_N)^C.$
 \end{enumerate}
 
 \subsection{The six-step algorithm}
@@ -1209,6 +1211,8 @@ For the purposes of this subsection:
     \item If a matrix has $N_1$ rows and $N_2$ columns, then its element with
         row index $i,$ where $0 \le i < N_1,$
         and column index $j,$ where $0 \le j < N_2,$ is said to be indexed $\langle i, j \rangle.$
+
+    \item IDFT* means IDFT without multiplication by $N^{-1}.$
 
 \end{itemize}
 
@@ -1225,13 +1229,13 @@ DFT of length $N = RC$ can be computed as follows:
     \item $[R \times C],$ transpose the matrix.
 \end{enumerate}
 
-IDFT of length $N = RC$ can be computed as follows, not counting final multiplication by $N^{-1}$:
+IDFT* of length $N = RC$ can be computed as follows:
 \begin{enumerate}
     \item $[C \times R],$ transpose the matrix.
-    \item $[R \times C],$ perform (length $C$) IDFT on each row with $\xi = (\xi_N)^R.$
+    \item $[R \times C],$ perform (length $C$) IDFT* on each row with $\xi = (\xi_N)^R.$
     \item $[R \times C],$ multiply each element indexed $\langle i,j \rangle$ by $(\xi_N)^{-ij}.$
     \item $[R \times C],$ transpose the matrix.
-    \item $[C \times R],$ perform (length $R$) IDFT on each row with $\xi = (\xi_N)^C.$
+    \item $[C \times R],$ perform (length $R$) IDFT* on each row with $\xi = (\xi_N)^C.$
     \item $[C \times R],$ transpose the matrix.
 \end{enumerate}
 
@@ -1260,7 +1264,7 @@ Remember in section~\ref{section:omitting1} we established~\eqref{eq:cdot_permut
 We then used this property to get rid of bit-reversal permutations in DIT and DIF.
 It turns out that, for both four-step and six-step algorithms,
 the same property can be employed to get rid of the
-final transposition step in DFT and the initial transposition step in IDFT simultaneously.
+final transposition step in DFT and the initial transposition step in IDFT* simultaneously.
 
 For the four-step algorithm, this means no bit-reversal permutation or matrix transposition is ever
 needed: we can also simultaneously omit the bit-reversal permutation steps in DIF and DIT
@@ -1617,7 +1621,7 @@ Observe that steps 1 and 2 of the direct transform:
 as well as steps 3 and 4 of the inverse transform:
 \begin{itemize}
 \item multiplication by $(\xi_N)^{-ij},$
-\item length-3 IDFT on each column,
+\item length-3 IDFT* on each column,
 \end{itemize}
 can be merged --- performed in a single pass over the columns.
 In fact, they \textit{should} be merged, as it produces less loads/stores and leads to better
@@ -1666,7 +1670,7 @@ Note that if we do not need to multiply by $\Phi,$ we have 8 multiplications per
 
 Consider now the case of inverse transform.
 We need to multiply each matrix element indexed $\langle i,j \rangle$
-by $(\xi_N)^{-ij},$ then perform length-3 IDFT on each column; and also multiply everything by a
+by $(\xi_N)^{-ij},$ then perform length-3 IDFT* on each column; and also multiply everything by a
 factor $\Phi.$
 
 Define $\Gamma = (\xi_N)^{-1},$ $\Lambda = (\xi_N)^{-N/3}.$
