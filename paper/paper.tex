@@ -662,7 +662,7 @@ the procedure $\mathrm{MontgomeryReduce}(a).$
 If we represent field elements as values in $[0; p-1],$ then
 $\redc(x,y)$ can be computed as $\mathrm{MontgomeryReduce}(xy).$
 
-\begin{procedure}[H]
+\begin{procedure}[!hbt]
 \DontPrintSemicolon
 \caption{MontgomeryReduce($a$)}
 \KwData{
@@ -798,7 +798,7 @@ Of all possible primes with those properties, we need to pick the $\ell$ largest
 
 This leads us to the following algorithm:
 
-\begin{procedure}[H]
+\begin{procedure}[!hbt]
 \caption{FindPrimesForN($n$, $p_{\max}, \ell$)}
 \SetKw{KwAnd}{and}
 \DontPrintSemicolon
@@ -824,7 +824,7 @@ This leads us to the following algorithm:
 }
 \end{procedure}
 
-\begin{procedure}[H]
+\begin{procedure}[!hbt]
 \caption{FindPrimes($w$, $n_{\min}$, $\ell$)}
 \SetKw{Error}{error}
 \DontPrintSemicolon
@@ -880,7 +880,7 @@ representation equals to the reversed length-$n$ binary representation of $k.$
 
 We now give the definition of the procedure that performs bit-reversal permutation.
 
-\begin{procedure}[H]
+\begin{procedure}[!hbt]
 \caption{BitRevPermute($A$)}
 \DontPrintSemicolon
 \KwIn{Array $A$, $|A| = 2^n.$}
@@ -904,7 +904,7 @@ We now define the decimation in time (DIT) algorithm.
 Note that it performs bit-reversal permutation as the first step.
 $\widehat{1}$ denotes the multiplicative identity of the underlying field.
 
-\begin{procedure}[H]
+\begin{procedure}[!hbt]
 \caption{DecimationInTime($A$, $\omega$)}
 \SetKw{KwBy}{by}
 \DontPrintSemicolon
@@ -951,7 +951,7 @@ We now define the decimation in frequency (DIF) algorithm.
 Note that it performs bit-reversal permutation as the last step.
 As in the previous subsection, $\widehat{1}$ denotes the multiplicative identity of the underlying field.
 
-\begin{procedure}[H]
+\begin{procedure}[!hbt]
 \caption{DecimationInFrequency($A$, $\omega$)}
 \SetKw{KwBy}{by}
 \SetKw{KwDownTo}{downto}
@@ -1296,9 +1296,10 @@ The algorithm for in-place transposition of a square matrix is simple: element
 $\langle i, j \rangle$ is exchanged with element $\langle j, i \rangle.$
 The same approach works for transposing a square submatrix of a larger, generally rectangular
 matrix.
-For completeness, we provide the code below.
+For completeness, we provide the code of $\mathrm{TransposeSquareSubMatrix}(p, n, n').$
+For a cache-oblivious version of this algorithm, see~\cite{cache_square_mat_trans}.
 
-\begin{procedure}[H]
+\begin{procedure}[!hbt]
 \caption{TransposeSquareSubMatrix($p$, $n$, $n'$)}
 \DontPrintSemicolon
 \KwData{
@@ -1323,8 +1324,6 @@ For completeness, we provide the code below.
     }
 }
 \end{procedure}
-
-For a cache-oblivious version of this algorithm, see~\cite{cache_square_mat_trans}.
 
 We will now discuss in-place transposition of a rectangular matrix.
 
@@ -1501,8 +1500,7 @@ to columns, then transpose the submatrices. Although $\rho^{-1} \ne \rho,$
 application of $\rho^{-1}$ to a column can also be done in a
 cache-efficient way, and also requires $2n$ additional memory.
 
-We provide the pseudocode for case of $C=2$ below.
-
+We provide the pseudocode for case of $C=2.$
 Note it uses the routine $\mathrm{TransposeSquareSubMatrix}$.
 It does not have to be implemented exactly in a way we demonstrated above;
 it just needs to have the same semantics.
@@ -1510,7 +1508,7 @@ It can be implemented in a cache-friendly way by dividing the square submatrix i
 tiles, perhaps recursively, transposing the elements inside tiles, and then swapping the tiles
 themselves; see~\cite{cache_square_mat_trans} for details.
 
-\begin{procedure}[H]
+\begin{procedure}[!hbtp]
 \caption{PermuteRho($p$, $\zeta$, $n$)}
 \DontPrintSemicolon
 \KwData{
@@ -1533,7 +1531,7 @@ themselves; see~\cite{cache_square_mat_trans} for details.
 }
 \end{procedure}
 
-\begin{procedure}[H]
+\begin{procedure}[!hbtp]
 \caption{UnPermuteRho($p$, $\zeta$, $n$)}
 \DontPrintSemicolon
 \KwData{
@@ -1556,7 +1554,7 @@ themselves; see~\cite{cache_square_mat_trans} for details.
 }
 \end{procedure}
 
-\begin{procedure}[H]
+\begin{procedure}[!hbtp]
 \caption{TransposeMatrixNx2N($p$, $\zeta$, $n$)}
 \DontPrintSemicolon
 \KwData{
@@ -1577,7 +1575,7 @@ themselves; see~\cite{cache_square_mat_trans} for details.
 }
 \end{procedure}
 
-\begin{procedure}[H]
+\begin{procedure}[!hbtp]
 \caption{TransposeMatrix2NxN($p$, $\zeta$, $n$)}
 \DontPrintSemicolon
 \KwData{
