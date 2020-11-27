@@ -45,7 +45,7 @@
 \title{Speeding up decimal multiplication}
 \author{Viktor Krapivensky}
 \date{%
-    \today
+    November 25, 2020
 }
 
 \begin{document}
@@ -73,7 +73,7 @@ it makes sense to keep the base decimal if the calculations themselves take $o(\
 as the binary form, being native for computers, has lower hidden constant. Also, as far as NTT is concerned, the binary form allows for better granularity when deciding how many ``digits'' to pack into a single word.
 
 It is a common theme in practical analysis of algorithms that ``fancy'' algorithms are slow when $n$ is small.
-For example, virtually all partical implementations of the ``fancy'' sorting algorithms that are divide-and-conquer in nature --- quick sort and merge sort --- do in fact fall back to ``dumb'' quadratic sorts if the size of the input if less than some threshold.
+For example, virtually all partical implementations of the ``fancy'' sorting algorithms that are divide-and-conquer in nature --- quick sort and merge sort --- do in fact fall back to ``dumb'' quadratic sorts if the size of the input is less than some threshold.
 In some cases, it is not even a matter of ``fancy'' versus ``dumb'' dichotomy, but rather there is a ``hierarchy of fanciness'':
 a group of algorithms with different asymptotic behavior such that it makes sense to use each one of them only for some range of values of $n.$
 To give an example, \textbf{libgmp} employs the following ``hierarchy of fanciness'' for multiplication~\cite{gmp_fh}:
@@ -714,7 +714,7 @@ of multiplication by $N^{-1}$ in the inverse transform; see section~\ref{section
 
 The \textbf{mpdecimal} library uses yet another method of modular reduction on 64-bit systems;
 it is based on the use of prime moduli of form $2^{64} - 2^{n} + 1.$
-Generally, such primes are knows as Solinas primes, or generalized Mersenne
+Generally, such primes are known as Solinas primes, or generalized Mersenne
 primes~\cite{Solinas},
 defined as primes of form $f(2^m),$ where $f(x)$ is a low-degree polynomial with small integer
 coefficients.
@@ -846,7 +846,7 @@ This leads us to the following algorithm:
 
 Note that it uses an unspecified algorithm to perform primality testing.
 We use the Miller-Rabin primality test with the first 12 prime numbers as bases; it has been proven
-in \cite{primebases} that, for values less than $2^{64},$ this is enough to guarantee correctness.
+in~\cite{primebases} that, for values less than $2^{64},$ this is enough to guarantee correctness.
 
 \section{Cooley-Tukey optimizations}
 
@@ -1269,7 +1269,7 @@ final transposition step in DFT and the initial transposition step in IDFT* simu
 For the four-step algorithm, this means no bit-reversal permutation or matrix transposition is ever
 needed: we can also simultaneously omit the bit-reversal permutation steps in DIF and DIT
 if we use DIF for the direct transforms in definition of four-step DFT, and DIT for inverse
-transforms in the definition of four-step IDFT.
+transforms in the definition of four-step IDFT*.
 
 For the six-step algorithm, unfortunately, things are not so simple.
 We can simultaneously omit the final transposition step (step 6) in the direct transform
@@ -1504,7 +1504,7 @@ to columns, then transpose the submatrices. Although $\rho^{-1} \ne \rho,$
 application of $\rho^{-1}$ to a column can also be done in a
 cache-efficient way, and also requires $2n$ additional memory.
 
-We provide the pseudocode for case of $C=2.$
+We provide the pseudocode for the case of $C=2.$
 Note it uses the routine $\mathrm{TransposeSquareSubMatrix}$.
 It does not have to be implemented exactly in a way we demonstrated above;
 it just needs to have the same semantics.
@@ -1907,7 +1907,7 @@ We can obtain such an ``unadjusted'' value by omitting an adjustment:
 \end{itemize}
 
 Note that we use this optimization much more sparingly than we theoretically could, because
-allowing non-local propagation of ``unadjustment'' would be a nightmare from the standpoint of
+allowing non-local propagation of ``unadjustment'' would be a nightmare from the standpoints of
 reliability and debuggability: we would need to keep track of what can, and what can not, be
 ``unadjusted'' at each step.
 
@@ -1954,7 +1954,7 @@ against \textbf{mpdecimal}.
 Since both rely on Cooley-Tukey,
 the graphs of time as a function of input size $n$ (in decimal digits)
 would be staircase-like.
-Define ``threshold input size'' for some fixed implementation as any value of $n$ where the
+Define ``threshold input size'' for some fixed implementation as any value of $n$ where a
 discontinuity occurs --- a new ``stair'' pops up.
 
 We calculated the threshold input sizes of both our implementation and of the \textbf{mpdecimal}
