@@ -692,7 +692,7 @@ For the pre-calculated data, put $\mu = 2^w,$ $p > 2$ is our prime number, and
 the value of $p'$ can be calculated with the extended Euclidean algorithm for GCD;
 we have $\gcd(p, \mu) = 1,$ so $\exists c_1, c_2 \in \mathbb{Z} \colon c_1 p + c_2 \mu = 1.$
 This means $c_1 p \equiv 1 \, (\mymod \, \mu)$ and $-c_1 p \equiv -1 \, (\mymod \, \mu),$ so
-$$p' = (-c_1 p) \mymod \mu.$$
+$$p' = (-c_1) \mymod \mu.$$
 
 The procedure $\mathrm{MontgomeryReduce(a)}$ internally
 (not counting the raw multiplication $xy = a$)
